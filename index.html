@@ -5,7 +5,7 @@
 <title>📊 DASHBOARD SLA / ZENDESK</title>
 
 <script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script> 
 
 <style>
 .card { transition: 0.3s; cursor:pointer; }
@@ -80,10 +80,10 @@
 
 </div>
 
-<!-- 🔥 RESPONSÁVEIS AJUSTADO (1 GRÁFICO SÓ) -->
+<!-- 🔥 RESPONSÁVEIS (AJUSTADO LADO A LADO) -->
 <div class="bg-white p-5 rounded-xl shadow mt-6">
-  <h3 class="font-bold mb-3">👤 Responsáveis (Dentro x Fora)</h3>
-  <canvas id="respComparativo"></canvas>
+  <h3 class="font-bold mb-3">👤 Responsáveis</h3>
+  <canvas id="respChart"></canvas>
 </div>
 
 <div class="bg-red-100 border border-red-500 p-4 rounded-xl mt-6">
@@ -112,8 +112,7 @@
 const apiURL = "https://script.google.com/macros/s/AKfycbzKjRpXnOG1I3P8NA90mPYVILS_317gx_EZUuio7fMrcMwJiIjwmWYjVOqD73Hkmw2CeQ/exec";
 
 let dadosCache = [];
-let chartSLA, chartOp, chartRespComparativo;
-
+let chartSLA, chartOp, chartResp;
 let ticketsFora = [];
 
 function normalizar(d){
@@ -121,7 +120,6 @@ function normalizar(d){
 }
 
 function abrirModal(lista){
-
   let html = lista.map(t => `
     <div class="border p-3 rounded bg-slate-50 mb-2">
       🎫 ${t.ticket_id}<br>
@@ -139,7 +137,6 @@ function fecharModal(){
 }
 
 /* ===== DRILL DOWN ===== */
-
 function bindClicks(){
   const card = document.getElementById("cardFora");
   if(card){
@@ -148,14 +145,12 @@ function bindClicks(){
 }
 
 function carregar(){
-
 fetch(apiURL + "?t=" + new Date().getTime())
 .then(r => r.json())
 .then(data => {
   dadosCache = data;
   render(data);
 });
-
 }
 
 function aplicarFiltro(){
@@ -188,9 +183,11 @@ function render(dados){
   let dentro = 0;
   let critico = 0;
 
+  let ticketsCriticos = [];
+  ticketsFora = [];
+
   let respDentro = {};
   let respFora = {};
-  ticketsFora = [];
 
   dados.forEach(d => {
 
@@ -207,7 +204,10 @@ function render(dados){
 
     let diff = Math.floor((new Date() - new Date(d.data_entrada)) / (1000*60*60*24));
 
-    if(diff > 5) critico++;
+    if(diff > 5){
+      critico++;
+      ticketsCriticos.push(d.ticket_id);
+    }
 
     if(d.responsavel){
       if(d.sla_status?.includes("DENTRO")){
@@ -226,14 +226,15 @@ function render(dados){
   document.getElementById("fora").innerText = fora;
   document.getElementById("critico").innerText = critico;
 
-  // SLA
+  document.getElementById("lista").innerText =
+    ticketsCriticos.length ? ticketsCriticos.join(", ") : "Nenhum crítico";
+
   if(chartSLA) chartSLA.destroy();
   chartSLA = new Chart(document.getElementById("sla"), {
     type:"doughnut",
     data:{ labels:["Dentro","Fora"], datasets:[{data:[dentro,fora]}] }
   });
 
-  // OPERACAO
   if(chartOp) chartOp.destroy();
   chartOp = new Chart(document.getElementById("operacao"), {
     type:"bar",
@@ -243,21 +244,24 @@ function render(dados){
     }
   });
 
-  // 🔥 RESPONSÁVEIS (COMPARATIVO)
-  if(chartRespComparativo) chartRespComparativo.destroy();
-  chartRespComparativo = new Chart(document.getElementById("respComparativo"), {
+  // 🔥 RESPONSÁVEIS LADO A LADO (ÚNICO GRÁFICO)
+  if(chartResp) chartResp.destroy();
+
+  let todos = Object.keys({...respDentro, ...respFora});
+
+  chartResp = new Chart(document.getElementById("respChart"), {
     type:"bar",
     data:{
-      labels:Object.keys({...respDentro, ...respFora}),
+      labels: todos,
       datasets:[
         {
           label:"Dentro do prazo",
-          data:Object.keys({...respDentro, ...respFora}).map(r => respDentro[r] || 0),
+          data: todos.map(r => respDentro[r] || 0),
           backgroundColor:"#22c55e"
         },
         {
           label:"Fora do prazo",
-          data:Object.keys({...respDentro, ...respFora}).map(r => respFora[r] || 0),
+          data: todos.map(r => respFora[r] || 0),
           backgroundColor:"#ef4444"
         }
       ]
@@ -274,8 +278,24 @@ function gerarPDF(){
 carregar();
 setInterval(carregar,30000);
 
+// =======================
+// 📄 EXPORT PDF AUTOMÁTICO
+// =======================
+
+function gerarPDFAuto(){
+  document.querySelectorAll("button, input").forEach(e => e.style.display = "none");
+  window.print();
+  setTimeout(() => location.reload(), 2000);
+}
+
+// ativa modo PDF via URL
+if(window.location.search.includes("pdf=1")){
+  window.addEventListener("load", () => {
+    setTimeout(() => gerarPDFAuto(), 1500);
+  });
+}
+
 </script>
 
 </body>
 </html>
-
