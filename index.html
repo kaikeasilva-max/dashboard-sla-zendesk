@@ -24,30 +24,27 @@
 <!-- HEADER -->
 <div class="mb-4">
   <h1 class="text-3xl font-bold">📊 DASHBOARD SLA / ZENDESK</h1>
-  <p class="text-slate-500">Visão executiva</p>
+  <p class="text-slate-500">Visão executiva (Power BI Style)</p>
 </div>
 
-<!-- FILTRO INTERVALO -->
-<div class="flex gap-3 items-center mb-6">
+<!-- FILTROS POWER BI -->
+<div class="flex flex-wrap gap-3 items-center mb-6">
+
+  <button onclick="filtroRapido('hoje')" class="bg-black text-white px-3 py-2 rounded">Hoje</button>
+  <button onclick="filtroRapido('ontem')" class="bg-gray-700 text-white px-3 py-2 rounded">Ontem</button>
+  <button onclick="filtroRapido('7d')" class="bg-blue-600 text-white px-3 py-2 rounded">Últimos 7 dias</button>
+  <button onclick="filtroRapido('30d')" class="bg-purple-600 text-white px-3 py-2 rounded">Últimos 30 dias</button>
+  <button onclick="filtroRapido('mes')" class="bg-green-600 text-white px-3 py-2 rounded">Este mês</button>
 
   <input type="date" id="dataInicio" class="p-2 border rounded">
   <input type="date" id="dataFim" class="p-2 border rounded">
 
-  <button onclick="aplicarFiltro()" class="bg-black text-white px-4 py-2 rounded">
-    🔎 Filtrar período
-  </button>
-
-  <button onclick="resetFiltro()" class="bg-gray-500 text-white px-4 py-2 rounded">
-    Reset
-  </button>
-
-  <button onclick="gerarPDF()" class="bg-blue-600 text-white px-4 py-2 rounded">
-    📄 PDF
-  </button>
+  <button onclick="aplicarFiltro()" class="bg-black text-white px-4 py-2 rounded">🔎 Filtrar</button>
+  <button onclick="resetFiltro()" class="bg-gray-500 text-white px-4 py-2 rounded">Reset</button>
 
 </div>
 
-<!-- PAINEL EXECUTIVO -->
+<!-- CARDS EXECUTIVOS -->
 <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
 
   <div class="card bg-white p-5 rounded-xl shadow">
@@ -66,7 +63,7 @@
   </div>
 
   <div class="card bg-white p-5 rounded-xl shadow">
-    <p>🔴 Fora SLA</p>
+    <p>🔴 Fora do SLA</p>
     <h2 id="fora" class="text-2xl font-bold">0</h2>
   </div>
 
@@ -92,15 +89,9 @@
 
 </div>
 
-<!-- EVOLUÇÃO -->
-<div class="bg-white p-5 rounded-xl shadow mt-6">
-  <h3 class="font-bold mb-3">📊 Tendência (SLA por dia)</h3>
-  <canvas id="tendencia"></canvas>
-</div>
-
 <!-- RESPONSÁVEIS -->
 <div class="bg-white p-5 rounded-xl shadow mt-6">
-  <h3 class="font-bold mb-3">👤 Ranking de Responsáveis</h3>
+  <h3 class="font-bold mb-3">👤 Responsáveis</h3>
   <canvas id="resp"></canvas>
 </div>
 
@@ -117,7 +108,11 @@
 const apiURL = "https://script.google.com/macros/s/AKfycbzKjRpXnOG1I3P8NA90mPYVILS_317gx_EZUuio7fMrcMwJiIjwmWYjVOqD73Hkmw2CeQ/exec";
 
 let dadosCache = [];
-let chartSLA, chartOp, chartResp, chartTrend;
+let chartSLA, chartOp, chartResp;
+
+function normalizarData(d){
+  return String(d).split("T")[0];
+}
 
 // 🚀 CARREGAR API
 function carregar() {
@@ -127,39 +122,93 @@ fetch(apiURL + "?t=" + new Date().getTime())
 .then(data => {
 
   dadosCache = data;
-  aplicarFiltro();
+  render(dadosCache);
 
 });
 
 }
 
-// 🔎 FILTRO INTERVALO
-function aplicarFiltro() {
+// 🎯 FILTROS RÁPIDOS POWER BI
+function filtroRapido(tipo){
+
+  let hoje = new Date();
+  let ini, fim;
+
+  if(tipo === "hoje"){
+    ini = fim = hoje;
+  }
+
+  if(tipo === "ontem"){
+    ini = fim = new Date();
+    ini.setDate(hoje.getDate() - 1);
+  }
+
+  if(tipo === "7d"){
+    ini = new Date();
+    ini.setDate(hoje.getDate() - 7);
+    fim = hoje;
+  }
+
+  if(tipo === "30d"){
+    ini = new Date();
+    ini.setDate(hoje.getDate() - 30);
+    fim = hoje;
+  }
+
+  if(tipo === "mes"){
+    ini = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    fim = hoje;
+  }
+
+  filtrarPorDatas(ini, fim);
+}
+
+// 📅 FILTRO INTERVALO
+function filtrarPorDatas(ini, fim){
+
+  let inicio = normalizarData(ini);
+  let fimData = normalizarData(fim);
+
+  let base = dadosCache.filter(d => {
+    let data = normalizarData(d.data_dia);
+    return data >= inicio && data <= fimData;
+  });
+
+  render(base);
+}
+
+// 🔎 INPUT MANUAL
+function aplicarFiltro(){
 
   let ini = document.getElementById("dataInicio").value;
   let fim = document.getElementById("dataFim").value;
 
-  let base = dadosCache;
-
-  if (ini && fim) {
-    base = dadosCache.filter(d => {
-      let data = new Date(d.data_dia);
-      return data >= new Date(ini) && data <= new Date(fim);
-    });
+  if(!ini && !fim){
+    render(dadosCache);
+    return;
   }
+
+  let base = dadosCache.filter(d => {
+    let data = normalizarData(d.data_dia);
+
+    if(ini && !fim) return data >= ini;
+    if(!ini && fim) return data <= fim;
+
+    return data >= ini && data <= fim;
+  });
 
   render(base);
 }
 
 // 🔄 RESET
-function resetFiltro() {
+function resetFiltro(){
   document.getElementById("dataInicio").value = "";
   document.getElementById("dataFim").value = "";
   render(dadosCache);
 }
 
 // 📊 RENDER EXECUTIVO
-function render(dados) {
+function render(dados){
 
   let total = dados.length;
   let finalizados = 0;
@@ -169,40 +218,30 @@ function render(dados) {
   let critico = 0;
 
   let resp = {};
-  let slaDia = {};
   let tickets = [];
 
   dados.forEach(d => {
 
-    if (d.status === "finalizado" || d.status === "tabulado") finalizados++;
+    if(d.status === "finalizado" || d.status === "tabulado") finalizados++;
     else pendentes++;
 
-    if (d.sla_status?.includes("FORA")) fora++;
-    if (d.sla_status?.includes("DENTRO")) dentro++;
+    if(d.sla_status?.includes("FORA")) fora++;
+    if(d.sla_status?.includes("DENTRO")) dentro++;
 
     let dt = new Date(d.data_entrada);
-    let diff = Math.floor((new Date() - dt) / (1000*60*60*24));
+    let diff = Math.floor((new Date() - dt)/(1000*60*60*24));
 
-    if (diff > 5) {
+    if(diff > 5){
       critico++;
       tickets.push(d.ticket_id);
     }
 
-    // RESPONSÁVEL
-    if (d.responsavel) {
-      resp[d.responsavel] = (resp[d.responsavel] || 0) + 1;
+    if(d.responsavel){
+      resp[d.responsavel] = (resp[d.responsavel]||0)+1;
     }
-
-    // TENDÊNCIA POR DIA
-    let dia = String(d.data_dia).split("T")[0];
-    slaDia[dia] = slaDia[dia] || {dentro:0, fora:0};
-
-    if (d.sla_status?.includes("DENTRO")) slaDia[dia].dentro++;
-    if (d.sla_status?.includes("FORA")) slaDia[dia].fora++;
 
   });
 
-  // CARDS
   document.getElementById("total").innerText = total;
   document.getElementById("finalizados").innerText = finalizados;
   document.getElementById("pendentes").innerText = pendentes;
@@ -212,69 +251,32 @@ function render(dados) {
   document.getElementById("lista").innerText =
     tickets.length ? tickets.join(", ") : "Nenhum crítico";
 
-  // SLA
-  if (chartSLA) chartSLA.destroy();
+  if(chartSLA) chartSLA.destroy();
   chartSLA = new Chart(document.getElementById("sla"), {
-    type: "doughnut",
-    data: {
-      labels: ["Dentro", "Fora"],
-      datasets: [{ data: [dentro, fora] }]
-    }
+    type:"doughnut",
+    data:{ labels:["Dentro","Fora"], datasets:[{data:[dentro,fora]}]}
   });
 
-  // OPERAÇÃO
-  if (chartOp) chartOp.destroy();
+  if(chartOp) chartOp.destroy();
   chartOp = new Chart(document.getElementById("operacao"), {
-    type: "bar",
-    data: {
-      labels: ["Total", "Finalizados", "Pendentes"],
-      datasets: [{ data: [total, finalizados, pendentes] }]
-    }
+    type:"bar",
+    data:{ labels:["Total","Finalizados","Pendentes"], datasets:[{data:[total,finalizados,pendentes]}]}
   });
 
-  // RESPONSÁVEIS
-  if (chartResp) chartResp.destroy();
+  if(chartResp) chartResp.destroy();
   chartResp = new Chart(document.getElementById("resp"), {
-    type: "bar",
-    data: {
-      labels: Object.keys(resp),
-      datasets: [{
-        label: "Tickets",
-        data: Object.values(resp)
-      }]
+    type:"bar",
+    data:{
+      labels:Object.keys(resp),
+      datasets:[{label:"Tickets", data:Object.values(resp)}]
     }
   });
 
-  // TENDÊNCIA
-  if (chartTrend) chartTrend.destroy();
-
-  chartTrend = new Chart(document.getElementById("tendencia"), {
-    type: "line",
-    data: {
-      labels: Object.keys(slaDia),
-      datasets: [
-        {
-          label: "Dentro",
-          data: Object.values(slaDia).map(v => v.dentro)
-        },
-        {
-          label: "Fora",
-          data: Object.values(slaDia).map(v => v.fora)
-        }
-      ]
-    }
-  });
-
-}
-
-// PDF
-function gerarPDF() {
-  window.print();
 }
 
 // INIT
 carregar();
-setInterval(carregar, 30000);
+setInterval(carregar,30000);
 
 </script>
 
