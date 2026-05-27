@@ -14,6 +14,10 @@
 .card:hover {
   transform: scale(1.03);
 }
+
+@media print {
+  button, select { display: none; }
+}
 </style>
 
 </head>
@@ -23,9 +27,24 @@
 <div class="max-w-7xl mx-auto p-6">
 
 <!-- HEADER -->
-<div class="mb-6">
+<div class="mb-4">
   <h1 class="text-3xl font-bold">📊 DASHBOARD SLA / ZENDESK</h1>
   <p class="text-slate-500">Visão operacional</p>
+</div>
+
+<!-- CONTROLES -->
+<div class="flex gap-3 items-center mb-6">
+
+  <!-- FILTRO -->
+  <select id="filtro" onchange="carregar()" class="p-2 border rounded">
+    <option value="todas">Todas as datas</option>
+  </select>
+
+  <!-- PDF -->
+  <button onclick="gerarPDF()" class="bg-black text-white px-4 py-2 rounded">
+    📄 Baixar PDF
+  </button>
+
 </div>
 
 <!-- CARDS -->
@@ -92,6 +111,7 @@
 const url = "https://docs.google.com/spreadsheets/d/1CafyeUwLEROswxB5RQvN8Jpt2F5VjvagpXxjF8NuK2Y/export?format=csv";
 
 let chartSLA, chartOp, chartResp;
+let dadosCache = [];
 
 function carregar() {
 
@@ -99,7 +119,48 @@ fetch(url + "&cache=" + new Date().getTime())
 .then(r => r.text())
 .then(data => {
 
-  const dados = data.split("\n").slice(1).map(l => l.split(","));
+  dadosCache = data.split("\n").slice(1).map(l => l.split(","));
+
+  montarFiltro();
+  aplicarFiltro();
+
+});
+
+}
+
+// monta filtro de datas
+function montarFiltro() {
+
+  let filtro = document.getElementById("filtro");
+
+  let datas = [...new Set(dadosCache.map(d => d[11]))].filter(Boolean);
+
+  if (filtro.options.length <= 1) {
+    datas.forEach(d => {
+      let opt = document.createElement("option");
+      opt.value = d;
+      opt.innerText = d;
+      filtro.appendChild(opt);
+    });
+  }
+
+}
+
+function aplicarFiltro() {
+
+  let f = document.getElementById("filtro").value;
+
+  let base = dadosCache;
+
+  if (f !== "todas") {
+    base = dadosCache.filter(d => d[11] === f);
+  }
+
+  render(base);
+
+}
+
+function render(dados) {
 
   let total = 0;
   let finalizados = 0;
@@ -166,7 +227,7 @@ fetch(url + "&cache=" + new Date().getTime())
   chartOp = new Chart(document.getElementById("operacao"), {
     type: "bar",
     data: {
-      labels: ["Entrada", "Finalizados", "Pendentes"],
+      labels: ["Total", "Finalizados", "Pendentes"],
       datasets: [{ data: [total, finalizados, pendentes] }]
     }
   });
@@ -184,14 +245,15 @@ fetch(url + "&cache=" + new Date().getTime())
     }
   });
 
-});
-
 }
 
-// primeira carga
-carregar();
+// PDF
+function gerarPDF() {
+  window.print();
+}
 
-// 🔄 AUTO REFRESH (SEM RELOAD)
+// realtime
+carregar();
 setInterval(carregar, 30000);
 
 </script>
