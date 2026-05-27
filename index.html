@@ -31,9 +31,17 @@
   <input type="date" id="dataInicio" class="p-2 border rounded">
   <input type="date" id="dataFim" class="p-2 border rounded">
 
-  <button onclick="aplicarFiltro()" class="bg-black text-white px-4 py-2 rounded">🔎 Filtrar</button>
-  <button onclick="resetFiltro()" class="bg-gray-500 text-white px-4 py-2 rounded">Reset</button>
-  <button onclick="gerarPDF()" class="bg-black text-white px-4 py-2 rounded">📄 Baixar PDF</button>
+  <button onclick="aplicarFiltro()" class="bg-black text-white px-4 py-2 rounded">
+    🔎 Filtrar
+  </button>
+
+  <button onclick="resetFiltro()" class="bg-gray-500 text-white px-4 py-2 rounded">
+    Reset
+  </button>
+
+  <button onclick="gerarPDF()" class="bg-black text-white px-4 py-2 rounded">
+    📄 Baixar PDF
+  </button>
 
 </div>
 
@@ -82,11 +90,8 @@
 
 <div class="bg-white p-5 rounded-xl shadow mt-6">
   <h3 class="font-bold mb-3">👤 Responsáveis</h3>
-
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-    <canvas id="respDentro"></canvas>
-    <canvas id="respFora"></canvas>
-  </div>
+  <canvas id="respDentro"></canvas>
+  <canvas id="respFora" class="mt-6"></canvas>
 </div>
 
 <div class="bg-red-100 border border-red-500 p-4 rounded-xl mt-6">
@@ -94,6 +99,20 @@
   <p id="lista"></p>
 </div>
 
+</div>
+
+<!-- MODAL -->
+<div id="modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+  <div class="bg-white w-3/4 max-h-[80vh] overflow-auto rounded-xl shadow-xl p-6">
+
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-xl font-bold">📌 Tickets</h2>
+      <button onclick="fecharModal()" class="text-red-600 font-bold text-xl">✕</button>
+    </div>
+
+    <div id="conteudoModal"></div>
+
+  </div>
 </div>
 
 <script>
@@ -105,15 +124,44 @@ let chartSLA, chartOp;
 let chartRespDentro, chartRespFora;
 
 function normalizar(d){
+  if(!d) return "";
   return String(d).split("T")[0];
+}
+
+// MODAL
+function abrirModal(lista){
+  let html = lista.map(t => `
+    <div class="border p-3 rounded bg-slate-50 mb-2">
+      🎫 ${t.ticket_id || "-"}<br>
+      👤 ${t.responsavel || "-"}<br>
+      🧾 ${t["status ticket"] || t.status || "-"}
+    </div>
+  `).join("");
+
+  document.getElementById("conteudoModal").innerHTML = html || "Sem dados";
+  document.getElementById("modal").classList.remove("hidden");
+}
+
+function fecharModal(){
+  document.getElementById("modal").classList.add("hidden");
+}
+
+// CLICK
+function addClick(chart, dados, filtroFn){
+  chart.options.onClick = (e, el) => {
+    if(!el.length) return;
+    let index = el[0].index;
+    let item = chart.data.labels[index];
+    abrirModal(dados.filter(filtroFn(item)));
+  };
 }
 
 function carregar(){
 fetch(apiURL + "?t=" + new Date().getTime())
 .then(r => r.json())
 .then(data => {
-  dadosCache = data;
-  render(data);
+  dadosCache = Array.isArray(data) ? data : [];
+  render(dadosCache);
 });
 }
 
@@ -151,28 +199,23 @@ function render(dados){
   let fora = 0;
   let dentro = 0;
   let critico = 0;
-  let ticketsCriticos = [];
 
+  let ticketsCriticos = [];
   let respDentro = {};
   let respFora = {};
 
   dados.forEach(d => {
 
-    // 🔥 CORREÇÃO PRINCIPAL DOS CARDS
-    total += 1;
-
-    if(d.saida && Number(d.saida) > 0){
-      finalizados += 1;
-    } else {
-      pendentes += 1;
-    }
+    total += Number(d.entrada || 0);
+    finalizados += Number(d.saida || 0);
+    pendentes += Number(d.pendente || 0);
 
     if(d.sla_status?.includes("FORA")) fora++;
     if(d.sla_status?.includes("DENTRO")) dentro++;
 
     let diff = Math.floor((new Date() - new Date(d.data_entrada)) / (1000*60*60*24));
 
-    if(diff > 5){
+    if(!isNaN(diff) && diff > 5){
       critico++;
       ticketsCriticos.push(d.ticket_id);
     }
@@ -188,7 +231,6 @@ function render(dados){
 
   });
 
-  // 🔥 CARDS VOLTARAM A FUNCIONAR
   document.getElementById("total").innerText = total;
   document.getElementById("finalizados").innerText = finalizados;
   document.getElementById("pendentes").innerText = pendentes;
@@ -198,12 +240,18 @@ function render(dados){
   document.getElementById("lista").innerText =
     ticketsCriticos.length ? ticketsCriticos.join(", ") : "Nenhum crítico";
 
-  if(chartRespDentro) chartRespDentro.destroy();
-  chartRespDentro = new Chart(document.getElementById("respDentro"), {
+  if(chartSLA) chartSLA.destroy();
+  chartSLA = new Chart(document.getElementById("sla"), {
+    type:"doughnut",
+    data:{ labels:["Dentro","Fora"], datasets:[{data:[dentro,fora]}] }
+  });
+
+  if(chartOp) chartOp.destroy();
+  chartOp = new Chart(document.getElementById("operacao"), {
     type:"bar",
     data:{
-      labels:Object.keys(respDentro),
-      datasets:[{label:"Dentro do prazo", data:Object.values(respDentro)}]
+      labels:["Entrada","Saída","Pendentes"],
+      datasets:[{data:[total,finalizados,pendentes]}]
     }
   });
 
@@ -212,10 +260,23 @@ function render(dados){
     type:"bar",
     data:{
       labels:Object.keys(respFora),
-      datasets:[{label:"Fora do prazo", data:Object.values(respFora)}]
+      datasets:[{label:"Fora do prazo", data:Object.values(respFora), backgroundColor:"#ef4444"}]
     }
   });
 
+  if(chartRespDentro) chartRespDentro.destroy();
+  chartRespDentro = new Chart(document.getElementById("respDentro"), {
+    type:"bar",
+    data:{
+      labels:Object.keys(respDentro),
+      datasets:[{label:"Dentro do prazo", data:Object.values(respDentro), backgroundColor:"#22c55e"}]
+    }
+  });
+
+}
+
+function gerarPDF(){
+  window.print();
 }
 
 carregar();
