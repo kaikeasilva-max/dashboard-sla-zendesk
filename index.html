@@ -12,7 +12,7 @@
 .card:hover { transform: scale(1.03); }
 
 @media print {
-  button, select { display: none; }
+  button, input { display:none; }
 }
 </style>
 </head>
@@ -27,7 +27,7 @@
   <p class="text-slate-500">Visão operacional</p>
 </div>
 
-<!-- FILTRO SIMPLES (1 DATA SÓ) -->
+<!-- FILTRO -->
 <div class="flex gap-3 items-center mb-6">
 
   <input type="date" id="dataFiltro" class="p-2 border rounded">
@@ -45,27 +45,27 @@
 <!-- CARDS -->
 <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
 
-  <div onclick="abrirPorCard('total')" class="card bg-white p-5 rounded-xl shadow">
-    <p>📦 Total</p>
+  <div class="card bg-white p-5 rounded-xl shadow">
+    <p>📦 Total (Entrada)</p>
     <h2 id="total" class="text-2xl font-bold">0</h2>
   </div>
 
-  <div onclick="abrirPorCard('finalizados')" class="card bg-white p-5 rounded-xl shadow">
-    <p>🟢 Finalizados</p>
+  <div class="card bg-white p-5 rounded-xl shadow">
+    <p>🟢 Finalizados (Saída)</p>
     <h2 id="finalizados" class="text-2xl font-bold">0</h2>
   </div>
 
-  <div onclick="abrirPorCard('pendentes')" class="card bg-white p-5 rounded-xl shadow">
+  <div class="card bg-white p-5 rounded-xl shadow">
     <p>🟡 Pendentes</p>
     <h2 id="pendentes" class="text-2xl font-bold">0</h2>
   </div>
 
-  <div onclick="abrirPorCard('fora')" class="card bg-white p-5 rounded-xl shadow">
+  <div class="card bg-white p-5 rounded-xl shadow">
     <p>🔴 Fora SLA</p>
     <h2 id="fora" class="text-2xl font-bold">0</h2>
   </div>
 
-  <div onclick="abrirPorCard('critico')" class="card bg-white p-5 rounded-xl shadow">
+  <div class="card bg-white p-5 rounded-xl shadow">
     <p>⚠ Críticos +5d</p>
     <h2 id="critico" class="text-2xl font-bold">0</h2>
   </div>
@@ -101,7 +101,7 @@
 
 </div>
 
-<!-- MODAL DRILL DOWN -->
+<!-- MODAL -->
 <div id="modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
   <div class="bg-white w-3/4 max-h-[80vh] overflow-auto rounded-xl shadow-xl p-6">
 
@@ -110,7 +110,7 @@
       <button onclick="fecharModal()" class="text-red-600 font-bold text-xl">✕</button>
     </div>
 
-    <div id="conteudoModal" class="space-y-2"></div>
+    <div id="conteudoModal"></div>
 
   </div>
 </div>
@@ -126,7 +126,7 @@ function normalizar(d){
   return String(d).split("T")[0];
 }
 
-// 🚀 CARREGAR
+// 🚀 CARREGAR API
 function carregar(){
 
 fetch(apiURL + "?t=" + new Date().getTime())
@@ -138,7 +138,7 @@ fetch(apiURL + "?t=" + new Date().getTime())
 
 }
 
-// 🔎 FILTRO SIMPLES (1 DATA)
+// 🔎 FILTRO DATA
 function aplicarFiltro(){
 
   let f = document.getElementById("dataFiltro").value;
@@ -160,10 +160,10 @@ function resetFiltro(){
   render(dadosCache);
 }
 
-// 📊 RENDER
+// 📊 RENDER CORRIGIDO (COLUNAS I J K)
 function render(dados){
 
-  let total = dados.length;
+  let total = 0;
   let finalizados = 0;
   let pendentes = 0;
   let fora = 0;
@@ -175,8 +175,10 @@ function render(dados){
 
   dados.forEach(d => {
 
-    if(d.status === "finalizado" || d.status === "tabulado") finalizados++;
-    else pendentes++;
+    // 🔥 CORREÇÃO PRINCIPAL AQUI
+    total += Number(d.entrada || d[8] || 0);      // COLUNA I
+    finalizados += Number(d.saida || d[9] || 0);  // COLUNA J
+    pendentes += Number(d.pendente || d[10] || 0); // COLUNA K
 
     if(d.sla_status?.includes("FORA")) fora++;
     if(d.sla_status?.includes("DENTRO")) dentro++;
@@ -208,56 +210,42 @@ function render(dados){
   if(chartSLA) chartSLA.destroy();
   chartSLA = new Chart(document.getElementById("sla"), {
     type:"doughnut",
-    data:{ labels:["Dentro","Fora"], datasets:[{data:[dentro,fora]}] },
-    options:{
-      onClick:(e,el)=>{
-        if(el.length){
-          let idx = el[0].index;
-          let tipo = idx === 0 ? "DENTRO" : "FORA";
-          abrirModal(dados.filter(d => d.sla_status?.includes(tipo)));
-        }
-      }
-    }
+    data:{ labels:["Dentro","Fora"], datasets:[{data:[dentro,fora]}] }
   });
 
   // OPERAÇÃO
   if(chartOp) chartOp.destroy();
   chartOp = new Chart(document.getElementById("operacao"), {
     type:"bar",
-    data:{ labels:["Total","Finalizados","Pendentes"], datasets:[{data:[total,finalizados,pendentes]}] }
+    data:{
+      labels:["Entrada","Saída","Pendentes"],
+      datasets:[{
+        data:[total,finalizados,pendentes]
+      }]
+    }
   });
 
-  // RESPONSÁVEL
+  // RESPONSÁVEIS
   if(chartResp) chartResp.destroy();
   chartResp = new Chart(document.getElementById("resp"), {
     type:"bar",
     data:{
       labels:Object.keys(resp),
       datasets:[{label:"Tickets", data:Object.values(resp)}]
-    },
-    options:{
-      onClick:(e,el)=>{
-        if(el.length){
-          let idx = el[0].index;
-          let nome = Object.keys(resp)[idx];
-          abrirModal(dados.filter(d => d.responsavel === nome));
-        }
-      }
     }
   });
 
 }
 
-// 📌 MODAL
+// MODAL
 function abrirModal(lista){
 
   let html = lista.map(t => `
-    <div class="border p-3 rounded bg-slate-50">
-      🎫 <b>${t.ticket_id}</b><br>
+    <div class="border p-3 rounded bg-slate-50 mb-2">
+      🎫 ${t.ticket_id}<br>
       👤 ${t.responsavel}<br>
       📅 ${t.data_entrada}<br>
-      📊 ${t.sla_status}<br>
-      📌 ${t.status}
+      📊 ${t.sla_status}
     </div>
   `).join("");
 
@@ -269,38 +257,6 @@ function abrirModal(lista){
 
 function fecharModal(){
   document.getElementById("modal").classList.add("hidden");
-}
-
-// CARD DRILL
-function abrirPorCard(tipo){
-
-  let lista = [];
-
-  if(tipo === "finalizados"){
-    lista = dadosCache.filter(d =>
-      d.status === "finalizado" || d.status === "tabulado"
-    );
-  }
-
-  if(tipo === "pendentes"){
-    lista = dadosCache.filter(d =>
-      !(d.status === "finalizado" || d.status === "tabulado")
-    );
-  }
-
-  if(tipo === "fora"){
-    lista = dadosCache.filter(d =>
-      d.sla_status?.includes("FORA")
-    );
-  }
-
-  if(tipo === "critico"){
-    lista = dadosCache.filter(d =>
-      Math.floor((new Date() - new Date(d.data_entrada))/(1000*60*60*24)) > 5
-    );
-  }
-
-  abrirModal(lista);
 }
 
 // INIT
