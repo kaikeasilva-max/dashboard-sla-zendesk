@@ -144,8 +144,8 @@ function fecharModal(){
   document.getElementById("modal").classList.add("hidden");
 }
 
-/* 🔥 CORREÇÃO AQUI (DRILL DOWN FUNCIONANDO DE VERDADE) */
-function addClick(chart, dados, campoFiltro){
+/* DRILL DOWN CORRIGIDO */
+function addClick(chart, dados, tipo){
 
   chart.options.onClick = (evt, el) => {
     if(!el.length) return;
@@ -154,12 +154,15 @@ function addClick(chart, dados, campoFiltro){
     const label = chart.data.labels[index];
 
     const lista = dados.filter(d => {
-      if(campoFiltro === "DENTRO"){
+
+      if(tipo === "DENTRO"){
         return d.responsavel === label && d.sla_status?.includes("DENTRO");
       }
-      if(campoFiltro === "FORA"){
+
+      if(tipo === "FORA"){
         return d.responsavel === label && d.sla_status?.includes("FORA");
       }
+
       return false;
     });
 
@@ -286,7 +289,7 @@ function render(dados){
     }
   });
 
-  /* 🔥 DRILL AQUI CORRIGIDO */
+  // DRILL DOWN ATIVO
   addClick(chartRespDentro, dados, "DENTRO");
   addClick(chartRespFora, dados, "FORA");
 
