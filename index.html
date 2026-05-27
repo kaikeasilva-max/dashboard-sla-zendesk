@@ -31,17 +31,9 @@
   <input type="date" id="dataInicio" class="p-2 border rounded">
   <input type="date" id="dataFim" class="p-2 border rounded">
 
-  <button onclick="aplicarFiltro()" class="bg-black text-white px-4 py-2 rounded">
-    🔎 Filtrar
-  </button>
-
-  <button onclick="resetFiltro()" class="bg-gray-500 text-white px-4 py-2 rounded">
-    Reset
-  </button>
-
-  <button onclick="gerarPDF()" class="bg-black text-white px-4 py-2 rounded">
-    📄 Baixar PDF
-  </button>
+  <button onclick="aplicarFiltro()" class="bg-black text-white px-4 py-2 rounded">🔎 Filtrar</button>
+  <button onclick="resetFiltro()" class="bg-gray-500 text-white px-4 py-2 rounded">Reset</button>
+  <button onclick="gerarPDF()" class="bg-black text-white px-4 py-2 rounded">📄 Baixar PDF</button>
 
 </div>
 
@@ -62,7 +54,7 @@
     <h2 id="pendentes" class="text-2xl font-bold">0</h2>
   </div>
 
-  <div class="card bg-white p-5 rounded-xl shadow" onclick="abrirPorSLA('FORA')">
+  <div class="card bg-white p-5 rounded-xl shadow" id="cardFora">
     <p>🔴 Fora SLA</p>
     <h2 id="fora" class="text-2xl font-bold">0</h2>
   </div>
@@ -120,11 +112,10 @@
 const apiURL = "https://script.google.com/macros/s/AKfycbzKjRpXnOG1I3P8NA90mPYVILS_317gx_EZUuio7fMrcMwJiIjwmWYjVOqD73Hkmw2CeQ/exec";
 
 let dadosCache = [];
-let chartSLA, chartOp;
-let chartRespDentro, chartRespFora;
+let chartSLA, chartOp, chartRespDentro, chartRespFora;
 
-// 🔥 NOVO: lista fora SLA
 let ticketsFora = [];
+let ticketsDentro = [];
 
 function normalizar(d){
   return String(d).split("T")[0];
@@ -148,10 +139,37 @@ function fecharModal(){
   document.getElementById("modal").classList.add("hidden");
 }
 
-// 🔥 SLA CLICK DRILLDOWN
-function abrirPorSLA(tipo){
-  if(tipo === "FORA"){
-    abrirModal(ticketsFora);
+/* ===== DRILL DOWN CORRIGIDO SEM SOBRESCREVER ===== */
+
+function bindClicks(){
+  // RESPONSÁVEIS - FORA
+  if(chartRespFora){
+    chartRespFora.options.onClick = (evt, el) => {
+      if(!el.length) return;
+      const label = chartRespFora.data.labels[el[0].index];
+      const lista = dadosCache.filter(d =>
+        d.responsavel === label && d.sla_status?.includes("FORA")
+      );
+      abrirModal(lista);
+    };
+  }
+
+  // RESPONSÁVEIS - DENTRO
+  if(chartRespDentro){
+    chartRespDentro.options.onClick = (evt, el) => {
+      if(!el.length) return;
+      const label = chartRespDentro.data.labels[el[0].index];
+      const lista = dadosCache.filter(d =>
+        d.responsavel === label && d.sla_status?.includes("DENTRO")
+      );
+      abrirModal(lista);
+    };
+  }
+
+  // CARD FORA SLA
+  const card = document.getElementById("cardFora");
+  if(card){
+    card.onclick = () => abrirModal(ticketsFora);
   }
 }
 
@@ -275,6 +293,7 @@ function render(dados){
     }
   });
 
+  bindClicks();
 }
 
 function gerarPDF(){
