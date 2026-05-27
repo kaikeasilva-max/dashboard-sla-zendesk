@@ -2,47 +2,87 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DASHBOARD SLA/ZENDESK</title>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
-<body style="font-family: Arial; background:#f1f5f9; margin:0;">
+<body class="bg-slate-100 p-6">
 
-  <div style="padding:20px; max-width:1200px; margin:auto;">
+  <div class="max-w-7xl mx-auto">
 
-    <h1 style="color:#1e293b;">
-      DASHBOARD SLA/ZENDESK
-    </h1>
+    <h1 class="text-3xl font-bold mb-6">DASHBOARD SLA/ZENDESK</h1>
 
-    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:20px;">
+    <!-- CARDS -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
 
-      <div style="background:white; padding:15px; border-radius:10px;">
-        <p>Total do Dia</p>
-        <h2>0</h2>
+      <div class="bg-white p-4 rounded-xl shadow">
+        <p>Total Tickets</p>
+        <h2 id="total">0</h2>
       </div>
 
-      <div style="background:white; padding:15px; border-radius:10px;">
-        <p>Abertos</p>
-        <h2>0</h2>
+      <div class="bg-white p-4 rounded-xl shadow">
+        <p>Finalizados</p>
+        <h2 id="finalizados">0</h2>
       </div>
 
-      <div style="background:white; padding:15px; border-radius:10px;">
-        <p>SLA OK</p>
-        <h2>0</h2>
+      <div class="bg-white p-4 rounded-xl shadow">
+        <p>Pendentes</p>
+        <h2 id="pendentes">0</h2>
       </div>
 
-      <div style="background:white; padding:15px; border-radius:10px;">
-        <p>Pendências</p>
-        <h2>0</h2>
+      <div class="bg-white p-4 rounded-xl shadow">
+        <p>SLA Fora do Prazo</p>
+        <h2 id="sla">0</h2>
       </div>
 
     </div>
 
-    <div style="margin-top:20px; background:white; padding:40px; border-radius:10px; text-align:center;">
-      Área de gráficos (vamos conectar depois)
+    <div class="bg-white p-6 rounded-xl shadow">
+      <h2 class="font-bold mb-4">Tabela (dados base)</h2>
+      <pre id="tabela">Carregando...</pre>
     </div>
 
   </div>
+
+<script>
+const url = "https://docs.google.com/spreadsheets/d/1CafyeUwLEROswxB5RQvN8Jpt2F5VjvagpXxjF8NuK2Y/export?format=csv";
+
+fetch(url)
+  .then(res => res.text())
+  .then(data => {
+    const linhas = data.split("\n").slice(1);
+
+    let total = 0;
+    let finalizados = 0;
+    let pendentes = 0;
+    let sla = 0;
+
+    let tabela = "";
+
+    linhas.forEach(l => {
+      const cols = l.split(",");
+
+      if (!cols[0]) return;
+
+      total++;
+
+      const status = cols[5];
+      const sla_status = cols[6];
+
+      if (status && status.includes("Finalizado")) finalizados++;
+      else pendentes++;
+
+      if (sla_status && sla_status.includes("FORA")) sla++;
+    });
+
+    document.getElementById("total").innerText = total;
+    document.getElementById("finalizados").innerText = finalizados;
+    document.getElementById("pendentes").innerText = pendentes;
+    document.getElementById("sla").innerText = sla;
+
+    document.getElementById("tabela").innerText = data;
+  });
+</script>
 
 </body>
 </html>
