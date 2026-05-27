@@ -101,7 +101,6 @@
 
 </div>
 
-<!-- MODAL -->
 <div id="modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
   <div class="bg-white w-3/4 max-h-[80vh] overflow-auto rounded-xl shadow-xl p-6">
 
@@ -124,15 +123,14 @@ let chartSLA, chartOp;
 let chartRespDentro, chartRespFora;
 
 function normalizar(d){
-  if(!d) return "";
   return String(d).split("T")[0];
 }
 
-// MODAL
 function abrirModal(lista){
+
   let html = lista.map(t => `
     <div class="border p-3 rounded bg-slate-50 mb-2">
-      🎫 ${t.ticket_id || "-"}<br>
+      🎫 ${t.ticket_id}<br>
       👤 ${t.responsavel || "-"}<br>
       🧾 ${t["status ticket"] || t.status || "-"}
     </div>
@@ -146,23 +144,38 @@ function fecharModal(){
   document.getElementById("modal").classList.add("hidden");
 }
 
-// CLICK
-function addClick(chart, dados, filtroFn){
-  chart.options.onClick = (e, el) => {
+/* 🔥 CORREÇÃO AQUI (DRILL DOWN FUNCIONANDO DE VERDADE) */
+function addClick(chart, dados, campoFiltro){
+
+  chart.options.onClick = (evt, el) => {
     if(!el.length) return;
-    let index = el[0].index;
-    let item = chart.data.labels[index];
-    abrirModal(dados.filter(filtroFn(item)));
+
+    const index = el[0].index;
+    const label = chart.data.labels[index];
+
+    const lista = dados.filter(d => {
+      if(campoFiltro === "DENTRO"){
+        return d.responsavel === label && d.sla_status?.includes("DENTRO");
+      }
+      if(campoFiltro === "FORA"){
+        return d.responsavel === label && d.sla_status?.includes("FORA");
+      }
+      return false;
+    });
+
+    abrirModal(lista);
   };
 }
 
 function carregar(){
+
 fetch(apiURL + "?t=" + new Date().getTime())
 .then(r => r.json())
 .then(data => {
-  dadosCache = Array.isArray(data) ? data : [];
-  render(dadosCache);
+  dadosCache = data;
+  render(data);
 });
+
 }
 
 function aplicarFiltro(){
@@ -215,7 +228,7 @@ function render(dados){
 
     let diff = Math.floor((new Date() - new Date(d.data_entrada)) / (1000*60*60*24));
 
-    if(!isNaN(diff) && diff > 5){
+    if(diff > 5){
       critico++;
       ticketsCriticos.push(d.ticket_id);
     }
@@ -272,6 +285,10 @@ function render(dados){
       datasets:[{label:"Dentro do prazo", data:Object.values(respDentro), backgroundColor:"#22c55e"}]
     }
   });
+
+  /* 🔥 DRILL AQUI CORRIGIDO */
+  addClick(chartRespDentro, dados, "DENTRO");
+  addClick(chartRespFora, dados, "FORA");
 
 }
 
