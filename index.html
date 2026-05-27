@@ -31,17 +31,9 @@
   <input type="date" id="dataInicio" class="p-2 border rounded">
   <input type="date" id="dataFim" class="p-2 border rounded">
 
-  <button onclick="aplicarFiltro()" class="bg-black text-white px-4 py-2 rounded">
-    🔎 Filtrar
-  </button>
-
-  <button onclick="resetFiltro()" class="bg-gray-500 text-white px-4 py-2 rounded">
-    Reset
-  </button>
-
-  <button onclick="gerarPDF()" class="bg-black text-white px-4 py-2 rounded">
-    📄 Baixar PDF
-  </button>
+  <button onclick="aplicarFiltro()" class="bg-black text-white px-4 py-2 rounded">🔎 Filtrar</button>
+  <button onclick="resetFiltro()" class="bg-gray-500 text-white px-4 py-2 rounded">Reset</button>
+  <button onclick="gerarPDF()" class="bg-black text-white px-4 py-2 rounded">📄 Baixar PDF</button>
 
 </div>
 
@@ -88,22 +80,12 @@
 
 </div>
 
-<!-- 🔥 AJUSTE SOMENTE VISUAL DOS GRÁFICOS -->
 <div class="bg-white p-5 rounded-xl shadow mt-6">
   <h3 class="font-bold mb-3">👤 Responsáveis</h3>
 
   <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-    <div>
-      <h4 class="font-bold text-green-600 mb-2">🟢 Dentro do prazo</h4>
-      <canvas id="respDentro" height="180"></canvas>
-    </div>
-
-    <div>
-      <h4 class="font-bold text-red-600 mb-2">🔴 Fora do prazo</h4>
-      <canvas id="respFora" height="180"></canvas>
-    </div>
-
+    <canvas id="respDentro"></canvas>
+    <canvas id="respFora"></canvas>
   </div>
 </div>
 
@@ -112,20 +94,6 @@
   <p id="lista"></p>
 </div>
 
-</div>
-
-<!-- MODAL -->
-<div id="modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-  <div class="bg-white w-3/4 max-h-[80vh] overflow-auto rounded-xl shadow-xl p-6">
-
-    <div class="flex justify-between items-center mb-4">
-      <h2 class="text-xl font-bold">📌 Tickets</h2>
-      <button onclick="fecharModal()" class="text-red-600 font-bold text-xl">✕</button>
-    </div>
-
-    <div id="conteudoModal"></div>
-
-  </div>
 </div>
 
 <script>
@@ -140,45 +108,13 @@ function normalizar(d){
   return String(d).split("T")[0];
 }
 
-function abrirModal(lista){
-
-  let html = lista.map(t => `
-    <div class="border p-3 rounded bg-slate-50 mb-2">
-      🎫 ${t.ticket_id}<br>
-      👤 ${t.responsavel || "-"}<br>
-      🧾 ${t["status ticket"] || t.status || "-"}
-    </div>
-  `).join("");
-
-  document.getElementById("conteudoModal").innerHTML = html || "Sem dados";
-  document.getElementById("modal").classList.remove("hidden");
-}
-
-function fecharModal(){
-  document.getElementById("modal").classList.add("hidden");
-}
-
-function addClick(chart, dados, filtroFn){
-  chart.options.onClick = (e, el) => {
-    if(!el.length) return;
-    let index = el[0].index;
-    let labels = chart.data.labels;
-    let item = labels[index];
-
-    let lista = dados.filter(filtroFn(item));
-    abrirModal(lista);
-  };
-}
-
 function carregar(){
-
 fetch(apiURL + "?t=" + new Date().getTime())
 .then(r => r.json())
 .then(data => {
   dadosCache = data;
   render(data);
 });
-
 }
 
 function aplicarFiltro(){
@@ -222,9 +158,14 @@ function render(dados){
 
   dados.forEach(d => {
 
-    total += Number(d.entrada || 0);
-    finalizados += Number(d.saida || 0);
-    pendentes += Number(d.pendente || 0);
+    // 🔥 CORREÇÃO PRINCIPAL DOS CARDS
+    total += 1;
+
+    if(d.saida && Number(d.saida) > 0){
+      finalizados += 1;
+    } else {
+      pendentes += 1;
+    }
 
     if(d.sla_status?.includes("FORA")) fora++;
     if(d.sla_status?.includes("DENTRO")) dentro++;
@@ -247,6 +188,13 @@ function render(dados){
 
   });
 
+  // 🔥 CARDS VOLTARAM A FUNCIONAR
+  document.getElementById("total").innerText = total;
+  document.getElementById("finalizados").innerText = finalizados;
+  document.getElementById("pendentes").innerText = pendentes;
+  document.getElementById("fora").innerText = fora;
+  document.getElementById("critico").innerText = critico;
+
   document.getElementById("lista").innerText =
     ticketsCriticos.length ? ticketsCriticos.join(", ") : "Nenhum crítico";
 
@@ -255,11 +203,7 @@ function render(dados){
     type:"bar",
     data:{
       labels:Object.keys(respDentro),
-      datasets:[{
-        label:"Dentro do prazo",
-        data:Object.values(respDentro),
-        backgroundColor:"#22c55e"
-      }]
+      datasets:[{label:"Dentro do prazo", data:Object.values(respDentro)}]
     }
   });
 
@@ -268,21 +212,9 @@ function render(dados){
     type:"bar",
     data:{
       labels:Object.keys(respFora),
-      datasets:[{
-        label:"Fora do prazo",
-        data:Object.values(respFora),
-        backgroundColor:"#ef4444"
-      }]
+      datasets:[{label:"Fora do prazo", data:Object.values(respFora)}]
     }
   });
-
-  addClick(chartRespDentro, dados, (nome)=>
-    d => d.responsavel === nome && d.sla_status?.includes("DENTRO")
-  );
-
-  addClick(chartRespFora, dados, (nome)=>
-    d => d.responsavel === nome && d.sla_status?.includes("FORA")
-  );
 
 }
 
