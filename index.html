@@ -303,7 +303,28 @@ function gerarPDF(){
 carregar();
 setInterval(carregar,30000);
 
+  
+// =======================
+// 📄 EXPORT PDF AUTOMÁTICO
+// =======================
+
+function gerarPDFAuto(){
+  document.querySelectorAll("button, input").forEach(e => e.style.display = "none");
+  window.print();
+  setTimeout(() => location.reload(), 2000);
+}
+
+// ativa modo PDF via URL
+if(window.location.search.includes("pdf=1")){
+  window.addEventListener("load", () => {
+    setTimeout(() => gerarPDFAuto(), 1500);
+  });
+}
+
 </script>
 
 </body>
 </html>
+
+
+
