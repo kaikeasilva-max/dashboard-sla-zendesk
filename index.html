@@ -4,84 +4,122 @@
   <meta charset="UTF-8">
   <title>DASHBOARD SLA/ZENDESK</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body class="bg-slate-100 p-6">
 
-  <div class="max-w-7xl mx-auto">
+<div class="max-w-7xl mx-auto">
 
-    <h1 class="text-3xl font-bold mb-6">DASHBOARD SLA/ZENDESK</h1>
+  <h1 class="text-3xl font-bold mb-6">DASHBOARD SLA / ZENDESK</h1>
 
-    <!-- CARDS -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+  <!-- CARDS -->
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
 
-      <div class="bg-white p-4 rounded-xl shadow">
-        <p>Total Tickets</p>
-        <h2 id="total">0</h2>
-      </div>
-
-      <div class="bg-white p-4 rounded-xl shadow">
-        <p>Finalizados</p>
-        <h2 id="finalizados">0</h2>
-      </div>
-
-      <div class="bg-white p-4 rounded-xl shadow">
-        <p>Pendentes</p>
-        <h2 id="pendentes">0</h2>
-      </div>
-
-      <div class="bg-white p-4 rounded-xl shadow">
-        <p>SLA Fora do Prazo</p>
-        <h2 id="sla">0</h2>
-      </div>
-
+    <div class="bg-white p-4 rounded-xl shadow">
+      <p>Total</p>
+      <h2 id="total" class="text-2xl font-bold">0</h2>
     </div>
 
-    <div class="bg-white p-6 rounded-xl shadow">
-      <h2 class="font-bold mb-4">Tabela (dados base)</h2>
-      <pre id="tabela">Carregando...</pre>
+    <div class="bg-white p-4 rounded-xl shadow">
+      <p>Finalizados</p>
+      <h2 id="finalizados" class="text-2xl font-bold">0</h2>
+    </div>
+
+    <div class="bg-white p-4 rounded-xl shadow">
+      <p>Pendentes</p>
+      <h2 id="pendentes" class="text-2xl font-bold">0</h2>
+    </div>
+
+    <div class="bg-white p-4 rounded-xl shadow">
+      <p>Fora do Prazo</p>
+      <h2 id="sla" class="text-2xl font-bold">0</h2>
     </div>
 
   </div>
 
+  <!-- GRÁFICOS -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+    <div class="bg-white p-4 rounded-xl shadow">
+      <h3 class="mb-2 font-bold">SLA</h3>
+      <canvas id="chartSLA"></canvas>
+    </div>
+
+    <div class="bg-white p-4 rounded-xl shadow">
+      <h3 class="mb-2 font-bold">Status</h3>
+      <canvas id="chartStatus"></canvas>
+    </div>
+
+  </div>
+
+</div>
+
 <script>
+
 const url = "https://docs.google.com/spreadsheets/d/1CafyeUwLEROswxB5RQvN8Jpt2F5VjvagpXxjF8NuK2Y/export?format=csv";
 
 fetch(url)
-  .then(res => res.text())
-  .then(data => {
-    const linhas = data.split("\n").slice(1);
+.then(r => r.text())
+.then(data => {
 
-    let total = 0;
-    let finalizados = 0;
-    let pendentes = 0;
-    let sla = 0;
+  const linhas = data.split("\n").slice(1);
 
-    let tabela = "";
+  let total = 0;
+  let finalizados = 0;
+  let pendentes = 0;
+  let fora = 0;
+  let dentro = 0;
 
-    linhas.forEach(l => {
-      const cols = l.split(",");
+  linhas.forEach(l => {
 
-      if (!cols[0]) return;
+    const c = l.split(",");
 
-      total++;
+    if (!c[0]) return;
 
-      const status = cols[5];
-      const sla_status = cols[6];
+    total++;
 
-      if (status && status.includes("Finalizado")) finalizados++;
-      else pendentes++;
+    const status = c[5];
+    const sla = c[6];
 
-      if (sla_status && sla_status.includes("FORA")) sla++;
-    });
+    if (status && status.includes("Finalizado")) finalizados++;
+    else pendentes++;
 
-    document.getElementById("total").innerText = total;
-    document.getElementById("finalizados").innerText = finalizados;
-    document.getElementById("pendentes").innerText = pendentes;
-    document.getElementById("sla").innerText = sla;
+    if (sla && sla.includes("FORA")) fora++;
+    if (sla && sla.includes("DENTRO")) dentro++;
 
-    document.getElementById("tabela").innerText = data;
   });
+
+  // CARDS
+  document.getElementById("total").innerText = total;
+  document.getElementById("finalizados").innerText = finalizados;
+  document.getElementById("pendentes").innerText = pendentes;
+  document.getElementById("sla").innerText = fora;
+
+  // GRAFICO SLA
+  new Chart(document.getElementById("chartSLA"), {
+    type: "doughnut",
+    data: {
+      labels: ["Dentro do Prazo", "Fora do Prazo"],
+      datasets: [{
+        data: [dentro, fora]
+      }]
+    }
+  });
+
+  // GRAFICO STATUS
+  new Chart(document.getElementById("chartStatus"), {
+    type: "bar",
+    data: {
+      labels: ["Finalizados", "Pendentes"],
+      datasets: [{
+        data: [finalizados, pendentes]
+      }]
+    }
+  });
+
+});
+
 </script>
 
 </body>
