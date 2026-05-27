@@ -48,12 +48,12 @@
 <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
 
   <div class="card bg-white p-5 rounded-xl shadow">
-    <p>📦 Total (Entrada)</p>
+    <p>📦 Total</p>
     <h2 id="total" class="text-2xl font-bold">0</h2>
   </div>
 
   <div class="card bg-white p-5 rounded-xl shadow">
-    <p>🟢 Finalizados (Saída)</p>
+    <p>🟢 Finalizados</p>
     <h2 id="finalizados" class="text-2xl font-bold">0</h2>
   </div>
 
@@ -74,26 +74,22 @@
 
 </div>
 
+<!-- SLA GRÁFICOS LADO A LADO -->
 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
   <div class="bg-white p-5 rounded-xl shadow">
-    <h3 class="font-bold mb-3">📈 SLA</h3>
-    <canvas id="sla"></canvas>
+    <h3 class="font-bold mb-3">🟢 Dentro do prazo</h3>
+    <canvas id="respDentro"></canvas>
   </div>
 
   <div class="bg-white p-5 rounded-xl shadow">
-    <h3 class="font-bold mb-3">📊 Operação</h3>
-    <canvas id="operacao"></canvas>
+    <h3 class="font-bold mb-3">🔴 Fora do prazo</h3>
+    <canvas id="respFora"></canvas>
   </div>
 
 </div>
 
-<div class="bg-white p-5 rounded-xl shadow mt-6">
-  <h3 class="font-bold mb-3">👤 Responsáveis</h3>
-  <canvas id="respDentro"></canvas>
-  <canvas id="respFora" class="mt-6"></canvas>
-</div>
-
+<!-- ALERTA -->
 <div class="bg-red-100 border border-red-500 p-4 rounded-xl mt-6">
   <h3 class="font-bold text-red-600">⚠ Tickets críticos (+5 dias)</h3>
   <p id="lista"></p>
@@ -101,17 +97,26 @@
 
 </div>
 
+<!-- MODAL -->
+<div id="modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+  <div class="bg-white w-3/4 max-h-[80vh] overflow-auto rounded-xl shadow-xl p-6">
+
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-xl font-bold">📌 Tickets</h2>
+      <button onclick="fecharModal()" class="text-red-600 font-bold text-xl">✕</button>
+    </div>
+
+    <div id="conteudoModal"></div>
+
+  </div>
+</div>
+
 <script>
 
 const apiURL = "https://script.google.com/macros/s/AKfycbzKjRpXnOG1I3P8NA90mPYVILS_317gx_EZUuio7fMrcMwJiIjwmWYjVOqD73Hkmw2CeQ/exec";
 
 let dadosCache = [];
-let chartSLA, chartOp;
-let chartRespDentro, chartRespFora;
-
-function normalizar(d){
-  return String(d).split("T")[0];
-}
+let chartDentro, chartFora;
 
 function carregar(){
 
@@ -135,7 +140,7 @@ function aplicarFiltro(){
   }
 
   let base = dadosCache.filter(d => {
-    let data = normalizar(d.data_dia);
+    let data = String(d.data_dia).split("T")[0];
     if(ini && data < ini) return false;
     if(fim && data > fim) return false;
     return true;
@@ -150,102 +155,122 @@ function resetFiltro(){
   render(dadosCache);
 }
 
+// 📊 RENDER
 function render(dados){
 
-  let total = 0;
-  let finalizados = 0;
-  let pendentes = 0;
-  let fora = 0;
-  let dentro = 0;
-  let critico = 0;
-  let ticketsCriticos = [];
+  let dentro = [];
+  let fora = [];
 
-  let respDentro = {};
-  let respFora = {};
+  let mapDentro = {};
+  let mapFora = {};
+
+  let ticketsCriticos = [];
 
   dados.forEach(d => {
 
-    total += Number(d.entrada || 0);
-    finalizados += Number(d.saida || 0);
-    pendentes += Number(d.pendente || 0);
-
-    if(d.sla_status?.includes("FORA")) fora++;
-    if(d.sla_status?.includes("DENTRO")) dentro++;
-
     let diff = Math.floor((new Date() - new Date(d.data_entrada)) / (1000*60*60*24));
 
-    if(diff > 5){
-      critico++;
-      ticketsCriticos.push(d.ticket_id);
+    if(diff > 5) ticketsCriticos.push(d.ticket_id);
+
+    if(d.sla_status?.includes("DENTRO")){
+      mapDentro[d.responsavel] = (mapDentro[d.responsavel]||0)+1;
     }
 
-    if(d.responsavel){
-
-      if(d.sla_status?.includes("DENTRO")){
-        respDentro[d.responsavel] = (respDentro[d.responsavel]||0)+1;
-      }
-
-      if(d.sla_status?.includes("FORA")){
-        respFora[d.responsavel] = (respFora[d.responsavel]||0)+1;
-      }
-
+    if(d.sla_status?.includes("FORA")){
+      mapFora[d.responsavel] = (mapFora[d.responsavel]||0)+1;
     }
 
   });
-
-  document.getElementById("total").innerText = total;
-  document.getElementById("finalizados").innerText = finalizados;
-  document.getElementById("pendentes").innerText = pendentes;
-  document.getElementById("fora").innerText = fora;
-  document.getElementById("critico").innerText = critico;
 
   document.getElementById("lista").innerText =
     ticketsCriticos.length ? ticketsCriticos.join(", ") : "Nenhum crítico";
 
-  if(chartSLA) chartSLA.destroy();
-  chartSLA = new Chart(document.getElementById("sla"), {
-    type:"doughnut",
-    data:{ labels:["Dentro","Fora"], datasets:[{data:[dentro,fora]}] }
-  });
-
-  if(chartOp) chartOp.destroy();
-  chartOp = new Chart(document.getElementById("operacao"), {
+  // 🟢 DENTRO
+  if(chartDentro) chartDentro.destroy();
+  chartDentro = new Chart(document.getElementById("respDentro"), {
     type:"bar",
     data:{
-      labels:["Entrada","Saída","Pendentes"],
-      datasets:[{data:[total,finalizados,pendentes]}]
-    }
-  });
-
-  // 🔴 FORA DO PRAZO EM VERMELHO (CORREÇÃO)
-  if(chartRespFora) chartRespFora.destroy();
-  chartRespFora = new Chart(document.getElementById("respFora"), {
-    type:"bar",
-    data:{
-      labels:Object.keys(respFora),
-      datasets:[{
-        label:"Fora do prazo",
-        data:Object.values(respFora),
-        backgroundColor:"#ef4444"
-      }]
-    }
-  });
-
-  if(chartRespDentro) chartRespDentro.destroy();
-  chartRespDentro = new Chart(document.getElementById("respDentro"), {
-    type:"bar",
-    data:{
-      labels:Object.keys(respDentro),
+      labels:Object.keys(mapDentro),
       datasets:[{
         label:"Dentro do prazo",
-        data:Object.values(respDentro),
+        data:Object.values(mapDentro),
         backgroundColor:"#22c55e"
       }]
+    },
+    options:{
+      onClick:(e,el)=>{
+        if(el.length){
+          let nome = Object.keys(mapDentro)[el[0].index];
+
+          abrirModal(
+            dados.filter(d =>
+              d.responsavel === nome &&
+              d.sla_status?.includes("DENTRO")
+            ).map(d => ({
+              ticket_id:d.ticket_id,
+              responsavel:d.responsavel,
+              status:d["status ticket"] || d.status
+            }))
+          );
+        }
+      }
+    }
+  });
+
+  // 🔴 FORA
+  if(chartFora) chartFora.destroy();
+  chartFora = new Chart(document.getElementById("respFora"), {
+    type:"bar",
+    data:{
+      labels:Object.keys(mapFora),
+      datasets:[{
+        label:"Fora do prazo",
+        data:Object.values(mapFora),
+        backgroundColor:"#ef4444"
+      }]
+    },
+    options:{
+      onClick:(e,el)=>{
+        if(el.length){
+          let nome = Object.keys(mapFora)[el[0].index];
+
+          abrirModal(
+            dados.filter(d =>
+              d.responsavel === nome &&
+              d.sla_status?.includes("FORA")
+            ).map(d => ({
+              ticket_id:d.ticket_id,
+              responsavel:d.responsavel,
+              status:d["status ticket"] || d.status
+            }))
+          );
+        }
+      }
     }
   });
 
 }
 
+// 📌 MODAL
+function abrirModal(lista){
+
+  let html = lista.map(t => `
+    <div class="border p-3 rounded bg-slate-50 mb-2">
+      🎫 ${t.ticket_id}<br>
+      👤 ${t.responsavel}<br>
+      🧾 ${t.status || "sem status"}
+    </div>
+  `).join("");
+
+  document.getElementById("conteudoModal").innerHTML = html || "Sem dados";
+  document.getElementById("modal").classList.remove("hidden");
+}
+
+function fecharModal(){
+  document.getElementById("modal").classList.add("hidden");
+}
+
+// PDF
 function gerarPDF(){
   window.print();
 }
