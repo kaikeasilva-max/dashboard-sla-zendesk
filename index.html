@@ -8,12 +8,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-.card {
-  transition: 0.3s;
-}
-.card:hover {
-  transform: scale(1.03);
-}
+.card { transition: 0.3s; }
+.card:hover { transform: scale(1.03); }
 
 @media print {
   button, select { display: none; }
@@ -35,12 +31,10 @@
 <!-- CONTROLES -->
 <div class="flex gap-3 items-center mb-6">
 
-  <!-- FILTRO -->
-  <select id="filtro" onchange="carregar()" class="p-2 border rounded">
+  <select id="filtro" onchange="aplicarFiltro()" class="p-2 border rounded">
     <option value="todas">Todas as datas</option>
   </select>
 
-  <!-- PDF -->
   <button onclick="gerarPDF()" class="bg-black text-white px-4 py-2 rounded">
     📄 Baixar PDF
   </button>
@@ -108,18 +102,33 @@
 
 <script>
 
-const url = "https://docs.google.com/spreadsheets/d/1CafyeUwLEROswxB5RQvN8Jpt2F5VjvagpXxjF8NuK2Y/export?format=csv";
+const urlBase = "https://docs.google.com/spreadsheets/d/1CafyeUwLEROswxB5RQvN8Jpt2F5VjvagpXxjF8NuK2Y/export?format=csv&gid=0";
+const urlHist = "https://docs.google.com/spreadsheets/d/1CafyeUwLEROswxB5RQvN8Jpt2F5VjvagpXxjF8NuK2Y/export?format=csv&gid=HISTORICO_GID";
 
-let chartSLA, chartOp, chartResp;
 let dadosCache = [];
+let chartSLA, chartOp, chartResp;
 
+// CARREGAR BASE + HISTÓRICO
 function carregar() {
 
-fetch(url + "&cache=" + new Date().getTime())
-.then(r => r.text())
-.then(data => {
+Promise.all([
+  fetch(urlBase).then(r => r.text()),
+  fetch(urlHist).then(r => r.text())
+])
+.then(([base, hist]) => {
 
-  dadosCache = data.split("\n").slice(1).map(l => l.split(","));
+  const baseArr = base.split("\n").slice(1).map(l => l.split(","));
+  const histArr = hist.split("\n").slice(1).map(l => l.split(","));
+
+  // JUNÇÃO SEM DUPLICIDADE
+  const mapa = new Map();
+
+  baseArr.concat(histArr).forEach(d => {
+    if (!d[0]) return;
+    mapa.set(d[0], d);
+  });
+
+  dadosCache = Array.from(mapa.values());
 
   montarFiltro();
   aplicarFiltro();
@@ -128,7 +137,7 @@ fetch(url + "&cache=" + new Date().getTime())
 
 }
 
-// monta filtro de datas
+// FILTRO
 function montarFiltro() {
 
   let filtro = document.getElementById("filtro");
@@ -160,6 +169,7 @@ function aplicarFiltro() {
 
 }
 
+// RENDER
 function render(dados) {
 
   let total = 0;
@@ -175,14 +185,12 @@ function render(dados) {
 
   dados.forEach(d => {
 
-    if (!d[0]) return;
+    let sla = d[6];
+    let resp = d[4];
 
     total += Number(d[8] || 0);
     finalizados += Number(d[9] || 0);
     pendentes += Number(d[10] || 0);
-
-    let sla = d[6];
-    let resp = d[4];
 
     if (sla?.includes("FORA")) fora++;
     if (sla?.includes("DENTRO")) dentro++;
@@ -252,7 +260,7 @@ function gerarPDF() {
   window.print();
 }
 
-// realtime
+// INIT + REALTIME
 carregar();
 setInterval(carregar, 30000);
 
