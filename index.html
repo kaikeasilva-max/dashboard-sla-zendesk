@@ -176,6 +176,15 @@ function resetFiltro(){
 
 function render(dados){
 
+  // 🔥 REMOVE DUPLICADOS (SEM MEXER NA API)
+  const mapa = new Map();
+  dados.forEach(d => {
+    if(!mapa.has(d.ticket_id)){
+      mapa.set(d.ticket_id, d);
+    }
+  });
+  dados = Array.from(mapa.values());
+
   let total = 0;
   let finalizados = 0;
   let pendentes = 0;
@@ -267,7 +276,6 @@ function render(dados){
     }
   });
 
-  // 🔥 AQUI ESTÁ A CORREÇÃO REAL DO CLIQUE (SEPARADO POR DATASET)
   chartResp.options.onClick = (evt, elements) => {
 
     if(!elements.length) return;
