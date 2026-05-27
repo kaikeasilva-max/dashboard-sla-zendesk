@@ -3,8 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <title>DASHBOARD SLA/ZENDESK</title>
+
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 </head>
 
 <body class="bg-slate-100 p-6">
@@ -16,24 +18,24 @@
   <!-- CARDS -->
   <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
 
-    <div class="bg-white p-4 rounded-xl shadow">
-      <p>Total</p>
-      <h2 id="total" class="text-2xl font-bold">0</h2>
+    <div class="bg-white p-5 rounded-xl shadow">
+      <p class="text-slate-500">Entrada</p>
+      <h2 id="entrada" class="text-3xl font-bold">0</h2>
     </div>
 
-    <div class="bg-white p-4 rounded-xl shadow">
-      <p>Finalizados</p>
-      <h2 id="finalizados" class="text-2xl font-bold">0</h2>
+    <div class="bg-white p-5 rounded-xl shadow">
+      <p class="text-slate-500">Finalizados</p>
+      <h2 id="finalizados" class="text-3xl font-bold">0</h2>
     </div>
 
-    <div class="bg-white p-4 rounded-xl shadow">
-      <p>Pendentes</p>
-      <h2 id="pendentes" class="text-2xl font-bold">0</h2>
+    <div class="bg-white p-5 rounded-xl shadow">
+      <p class="text-slate-500">Pendentes</p>
+      <h2 id="pendentes" class="text-3xl font-bold">0</h2>
     </div>
 
-    <div class="bg-white p-4 rounded-xl shadow">
-      <p>Fora do Prazo</p>
-      <h2 id="sla" class="text-2xl font-bold">0</h2>
+    <div class="bg-white p-5 rounded-xl shadow">
+      <p class="text-slate-500">Fora do Prazo</p>
+      <h2 id="sla" class="text-3xl font-bold">0</h2>
     </div>
 
   </div>
@@ -41,14 +43,19 @@
   <!-- GRÁFICOS -->
   <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-    <div class="bg-white p-4 rounded-xl shadow">
-      <h3 class="mb-2 font-bold">SLA</h3>
+    <div class="bg-white p-5 rounded-xl shadow">
+      <h3 class="font-bold mb-3">SLA</h3>
       <canvas id="chartSLA"></canvas>
     </div>
 
-    <div class="bg-white p-4 rounded-xl shadow">
-      <h3 class="mb-2 font-bold">Status</h3>
+    <div class="bg-white p-5 rounded-xl shadow">
+      <h3 class="font-bold mb-3">Status Operação</h3>
       <canvas id="chartStatus"></canvas>
+    </div>
+
+    <div class="bg-white p-5 rounded-xl shadow md:col-span-2">
+      <h3 class="font-bold mb-3">Responsáveis</h3>
+      <canvas id="chartResp"></canvas>
     </div>
 
   </div>
@@ -65,11 +72,13 @@ fetch(url)
 
   const linhas = data.split("\n").slice(1);
 
-  let total = 0;
+  let entrada = 0;
   let finalizados = 0;
   let pendentes = 0;
   let fora = 0;
   let dentro = 0;
+
+  let respMap = {};
 
   linhas.forEach(l => {
 
@@ -77,43 +86,62 @@ fetch(url)
 
     if (!c[0]) return;
 
-    total++;
+    // I = Entrada
+    entrada += Number(c[8] || 0);
 
-    const status = c[5];
-    const sla = c[6];
+    // J = Finalizados
+    finalizados += Number(c[9] || 0);
 
-    if (status && status.includes("Finalizado")) finalizados++;
-    else pendentes++;
+    // K = Pendentes
+    pendentes += Number(c[10] || 0);
 
-    if (sla && sla.includes("FORA")) fora++;
-    if (sla && sla.includes("DENTRO")) dentro++;
+    // G = SLA
+    if (c[6] && c[6].includes("FORA")) fora++;
+    if (c[6] && c[6].includes("DENTRO")) dentro++;
+
+    // E = responsável
+    const resp = c[4];
+    if (resp) {
+      respMap[resp] = (respMap[resp] || 0) + 1;
+    }
 
   });
 
   // CARDS
-  document.getElementById("total").innerText = total;
+  document.getElementById("entrada").innerText = entrada;
   document.getElementById("finalizados").innerText = finalizados;
   document.getElementById("pendentes").innerText = pendentes;
   document.getElementById("sla").innerText = fora;
 
-  // GRAFICO SLA
+  // SLA
   new Chart(document.getElementById("chartSLA"), {
     type: "doughnut",
     data: {
-      labels: ["Dentro do Prazo", "Fora do Prazo"],
+      labels: ["Dentro", "Fora"],
       datasets: [{
         data: [dentro, fora]
       }]
     }
   });
 
-  // GRAFICO STATUS
+  // STATUS
   new Chart(document.getElementById("chartStatus"), {
     type: "bar",
     data: {
-      labels: ["Finalizados", "Pendentes"],
+      labels: ["Entrada", "Finalizados", "Pendentes"],
       datasets: [{
-        data: [finalizados, pendentes]
+        data: [entrada, finalizados, pendentes]
+      }]
+    }
+  });
+
+  // RESPONSÁVEL
+  new Chart(document.getElementById("chartResp"), {
+    type: "bar",
+    data: {
+      labels: Object.keys(respMap),
+      datasets: [{
+        data: Object.values(respMap)
       }]
     }
   });
