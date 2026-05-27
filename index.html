@@ -2,14 +2,17 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>DASHBOARD SLA / ZENDESK</title>
+<title>📊 DASHBOARD SLA / ZENDESK</title>
 
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-@media print {
-  button { display: none; }
+.card {
+  transition: 0.3s;
+}
+.card:hover {
+  transform: scale(1.03);
 }
 </style>
 
@@ -19,66 +22,68 @@
 
 <div class="max-w-7xl mx-auto p-6">
 
-  <!-- HEADER -->
-  <h1 class="text-3xl font-bold mb-2">📊 DASHBOARD SLA / ZENDESK</h1>
-  <p class="text-slate-500 mb-6">Visão operacional e executiva</p>
+<!-- HEADER -->
+<div class="mb-6">
+  <h1 class="text-3xl font-bold">📊 DASHBOARD SLA / ZENDESK</h1>
+  <p class="text-slate-500">Visão operacional</p>
+</div>
 
-  <!-- BOTÃO PDF -->
-  <button onclick="gerarPDF()" class="bg-black text-white px-4 py-2 rounded mb-6">
-    📄 Baixar PDF
-  </button>
+<!-- CARDS -->
+<div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
 
-  <!-- CARDS -->
-  <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-
-    <div class="bg-white p-5 rounded-xl shadow">
-      <p>📦 Entrada</p>
-      <h2 id="entrada" class="text-3xl font-bold">0</h2>
-    </div>
-
-    <div class="bg-white p-5 rounded-xl shadow">
-      <p>🟢 Finalizados</p>
-      <h2 id="finalizados" class="text-3xl font-bold">0</h2>
-    </div>
-
-    <div class="bg-white p-5 rounded-xl shadow">
-      <p>🟡 Pendentes</p>
-      <h2 id="pendentes" class="text-3xl font-bold">0</h2>
-    </div>
-
-    <div class="bg-white p-5 rounded-xl shadow">
-      <p>🔴 Fora do Prazo</p>
-      <h2 id="fora" class="text-3xl font-bold">0</h2>
-    </div>
-
+  <div class="card bg-white p-5 rounded-xl shadow">
+    <p>📦 Total</p>
+    <h2 id="total" class="text-2xl font-bold">0</h2>
   </div>
 
-  <!-- SLA + STATUS -->
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-    <div class="bg-white p-5 rounded-xl shadow">
-      <h3 class="font-bold mb-3">SLA</h3>
-      <canvas id="chartSLA"></canvas>
-    </div>
-
-    <div class="bg-white p-5 rounded-xl shadow">
-      <h3 class="font-bold mb-3">Operação</h3>
-      <canvas id="chartStatus"></canvas>
-    </div>
-
+  <div class="card bg-white p-5 rounded-xl shadow">
+    <p>🟢 Finalizados</p>
+    <h2 id="finalizados" class="text-2xl font-bold">0</h2>
   </div>
 
-  <!-- RESPONSÁVEIS -->
-  <div class="bg-white p-5 rounded-xl shadow mt-6">
-    <h3 class="font-bold mb-3">👤 Responsáveis (Dentro vs Fora)</h3>
-    <canvas id="chartResp"></canvas>
+  <div class="card bg-white p-5 rounded-xl shadow">
+    <p>🟡 Pendentes</p>
+    <h2 id="pendentes" class="text-2xl font-bold">0</h2>
   </div>
 
-  <!-- ALERTA 5 DIAS -->
-  <div class="bg-red-100 border border-red-500 p-4 rounded-xl mt-6">
-    <h3 class="font-bold text-red-600">⚠ Tickets acima de 5 dias</h3>
-    <p id="lista5"></p>
+  <div class="card bg-white p-5 rounded-xl shadow">
+    <p>🔴 Fora do Prazo</p>
+    <h2 id="fora" class="text-2xl font-bold">0</h2>
   </div>
+
+  <div class="card bg-white p-5 rounded-xl shadow">
+    <p>⚠ +5 Dias</p>
+    <h2 id="critico" class="text-2xl font-bold">0</h2>
+  </div>
+
+</div>
+
+<!-- GRAFICOS -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+  <div class="bg-white p-5 rounded-xl shadow">
+    <h3 class="font-bold mb-3">📈 SLA</h3>
+    <canvas id="sla"></canvas>
+  </div>
+
+  <div class="bg-white p-5 rounded-xl shadow">
+    <h3 class="font-bold mb-3">📊 Operação</h3>
+    <canvas id="operacao"></canvas>
+  </div>
+
+</div>
+
+<!-- RESPONSÁVEIS -->
+<div class="bg-white p-5 rounded-xl shadow mt-6">
+  <h3 class="font-bold mb-3">👤 Responsáveis</h3>
+  <canvas id="resp"></canvas>
+</div>
+
+<!-- ALERTA -->
+<div class="bg-red-100 border border-red-500 p-4 rounded-xl mt-6">
+  <h3 class="font-bold text-red-600">⚠ Tickets críticos (+5 dias)</h3>
+  <p id="lista"></p>
+</div>
 
 </div>
 
@@ -86,85 +91,69 @@
 
 const url = "https://docs.google.com/spreadsheets/d/1CafyeUwLEROswxB5RQvN8Jpt2F5VjvagpXxjF8NuK2Y/export?format=csv";
 
-let rawData = [];
+let chartSLA, chartOp, chartResp;
 
-fetch(url)
+function carregar() {
+
+fetch(url + "&cache=" + new Date().getTime())
 .then(r => r.text())
 .then(data => {
 
-  rawData = data.split("\n").slice(1);
+  const dados = data.split("\n").slice(1).map(l => l.split(","));
 
-  render(rawData);
-
-});
-
-function render(linhas) {
-
-  let entrada = 0;
+  let total = 0;
   let finalizados = 0;
   let pendentes = 0;
   let fora = 0;
   let dentro = 0;
+  let critico = 0;
 
-  let respDentro = {};
-  let respFora = {};
-  let tickets5dias = [];
+  let respD = {};
+  let respF = {};
+  let tickets = [];
 
-  linhas.forEach(l => {
+  dados.forEach(d => {
 
-    const c = l.split(",");
+    if (!d[0]) return;
 
-    if (!c[0]) return;
+    total += Number(d[8] || 0);
+    finalizados += Number(d[9] || 0);
+    pendentes += Number(d[10] || 0);
 
-    let ticket = c[0];
-    let responsavel = c[4];
-    let sla = c[6];
-    let dataEntrada = new Date(c[2]);
-
-    // cards
-    entrada += Number(c[8] || 0);
-    finalizados += Number(c[9] || 0);
-    pendentes += Number(c[10] || 0);
+    let sla = d[6];
+    let resp = d[4];
 
     if (sla?.includes("FORA")) fora++;
     if (sla?.includes("DENTRO")) dentro++;
 
-    // responsável
-    if (responsavel) {
+    let dataEntrada = new Date(d[2]);
+    let diff = Math.floor((new Date() - dataEntrada) / (1000*60*60*24));
 
-      if (sla?.includes("DENTRO")) {
-        respDentro[responsavel] = (respDentro[responsavel] || 0) + 1;
-      }
-
-      if (sla?.includes("FORA")) {
-        respFora[responsavel] = (respFora[responsavel] || 0) + 1;
-      }
+    if (diff > 5) {
+      critico++;
+      tickets.push(d[0]);
     }
 
-    // +5 dias
-    if (dataEntrada) {
-      let hoje = new Date();
-      let diff = Math.floor((hoje - dataEntrada) / (1000 * 60 * 60 * 24));
-
-      if (diff > 5) {
-        tickets5dias.push(ticket);
-      }
+    if (resp) {
+      if (sla?.includes("DENTRO")) respD[resp] = (respD[resp] || 0) + 1;
+      if (sla?.includes("FORA")) respF[resp] = (respF[resp] || 0) + 1;
     }
 
   });
 
   // CARDS
-  document.getElementById("entrada").innerText = entrada;
+  document.getElementById("total").innerText = total;
   document.getElementById("finalizados").innerText = finalizados;
   document.getElementById("pendentes").innerText = pendentes;
   document.getElementById("fora").innerText = fora;
+  document.getElementById("critico").innerText = critico;
 
-  // ALERTA 5 DIAS
-  document.getElementById("lista5").innerText =
-    tickets5dias.length ? tickets5dias.join(", ") : "Nenhum ticket crítico";
+  document.getElementById("lista").innerText =
+    tickets.length ? tickets.join(", ") : "Nenhum crítico";
 
   // SLA
-  new Chart(document.getElementById("chartSLA"), {
+  if (chartSLA) chartSLA.destroy();
+  chartSLA = new Chart(document.getElementById("sla"), {
     type: "doughnut",
     data: {
       labels: ["Dentro", "Fora"],
@@ -172,39 +161,38 @@ function render(linhas) {
     }
   });
 
-  // STATUS
-  new Chart(document.getElementById("chartStatus"), {
+  // OPERACAO
+  if (chartOp) chartOp.destroy();
+  chartOp = new Chart(document.getElementById("operacao"), {
     type: "bar",
     data: {
       labels: ["Entrada", "Finalizados", "Pendentes"],
-      datasets: [{ data: [entrada, finalizados, pendentes] }]
+      datasets: [{ data: [total, finalizados, pendentes] }]
     }
   });
 
-  // RESPONSÁVEIS
-  new Chart(document.getElementById("chartResp"), {
+  // RESPONSAVEIS
+  if (chartResp) chartResp.destroy();
+  chartResp = new Chart(document.getElementById("resp"), {
     type: "bar",
     data: {
-      labels: Object.keys(respDentro),
+      labels: Object.keys(respD),
       datasets: [
-        {
-          label: "Dentro do Prazo",
-          data: Object.values(respDentro)
-        },
-        {
-          label: "Fora do Prazo",
-          data: Object.keys(respDentro).map(k => respFora[k] || 0)
-        }
+        { label: "Dentro", data: Object.values(respD) },
+        { label: "Fora", data: Object.keys(respD).map(k => respF[k] || 0) }
       ]
     }
   });
 
+});
+
 }
 
-// PDF
-function gerarPDF() {
-  window.print();
-}
+// primeira carga
+carregar();
+
+// 🔄 AUTO REFRESH (SEM RELOAD)
+setInterval(carregar, 30000);
 
 </script>
 
