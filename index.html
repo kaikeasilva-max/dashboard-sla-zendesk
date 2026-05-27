@@ -80,10 +80,10 @@
 
 </div>
 
+<!-- 🔥 RESPONSÁVEIS AJUSTADO (1 GRÁFICO SÓ) -->
 <div class="bg-white p-5 rounded-xl shadow mt-6">
-  <h3 class="font-bold mb-3">👤 Responsáveis</h3>
-  <canvas id="respDentro"></canvas>
-  <canvas id="respFora" class="mt-6"></canvas>
+  <h3 class="font-bold mb-3">👤 Responsáveis (Dentro x Fora)</h3>
+  <canvas id="respComparativo"></canvas>
 </div>
 
 <div class="bg-red-100 border border-red-500 p-4 rounded-xl mt-6">
@@ -112,10 +112,9 @@
 const apiURL = "https://script.google.com/macros/s/AKfycbzKjRpXnOG1I3P8NA90mPYVILS_317gx_EZUuio7fMrcMwJiIjwmWYjVOqD73Hkmw2CeQ/exec";
 
 let dadosCache = [];
-let chartSLA, chartOp, chartRespDentro, chartRespFora;
+let chartSLA, chartOp, chartRespComparativo;
 
 let ticketsFora = [];
-let ticketsDentro = [];
 
 function normalizar(d){
   return String(d).split("T")[0];
@@ -139,34 +138,9 @@ function fecharModal(){
   document.getElementById("modal").classList.add("hidden");
 }
 
-/* ===== DRILL DOWN CORRIGIDO SEM SOBRESCREVER ===== */
+/* ===== DRILL DOWN ===== */
 
 function bindClicks(){
-  // RESPONSÁVEIS - FORA
-  if(chartRespFora){
-    chartRespFora.options.onClick = (evt, el) => {
-      if(!el.length) return;
-      const label = chartRespFora.data.labels[el[0].index];
-      const lista = dadosCache.filter(d =>
-        d.responsavel === label && d.sla_status?.includes("FORA")
-      );
-      abrirModal(lista);
-    };
-  }
-
-  // RESPONSÁVEIS - DENTRO
-  if(chartRespDentro){
-    chartRespDentro.options.onClick = (evt, el) => {
-      if(!el.length) return;
-      const label = chartRespDentro.data.labels[el[0].index];
-      const lista = dadosCache.filter(d =>
-        d.responsavel === label && d.sla_status?.includes("DENTRO")
-      );
-      abrirModal(lista);
-    };
-  }
-
-  // CARD FORA SLA
   const card = document.getElementById("cardFora");
   if(card){
     card.onclick = () => abrirModal(ticketsFora);
@@ -214,11 +188,9 @@ function render(dados){
   let dentro = 0;
   let critico = 0;
 
-  let ticketsCriticos = [];
-  ticketsFora = [];
-
   let respDentro = {};
   let respFora = {};
+  ticketsFora = [];
 
   dados.forEach(d => {
 
@@ -235,10 +207,7 @@ function render(dados){
 
     let diff = Math.floor((new Date() - new Date(d.data_entrada)) / (1000*60*60*24));
 
-    if(diff > 5){
-      critico++;
-      ticketsCriticos.push(d.ticket_id);
-    }
+    if(diff > 5) critico++;
 
     if(d.responsavel){
       if(d.sla_status?.includes("DENTRO")){
@@ -257,15 +226,14 @@ function render(dados){
   document.getElementById("fora").innerText = fora;
   document.getElementById("critico").innerText = critico;
 
-  document.getElementById("lista").innerText =
-    ticketsCriticos.length ? ticketsCriticos.join(", ") : "Nenhum crítico";
-
+  // SLA
   if(chartSLA) chartSLA.destroy();
   chartSLA = new Chart(document.getElementById("sla"), {
     type:"doughnut",
     data:{ labels:["Dentro","Fora"], datasets:[{data:[dentro,fora]}] }
   });
 
+  // OPERACAO
   if(chartOp) chartOp.destroy();
   chartOp = new Chart(document.getElementById("operacao"), {
     type:"bar",
@@ -275,21 +243,24 @@ function render(dados){
     }
   });
 
-  if(chartRespFora) chartRespFora.destroy();
-  chartRespFora = new Chart(document.getElementById("respFora"), {
+  // 🔥 RESPONSÁVEIS (COMPARATIVO)
+  if(chartRespComparativo) chartRespComparativo.destroy();
+  chartRespComparativo = new Chart(document.getElementById("respComparativo"), {
     type:"bar",
     data:{
-      labels:Object.keys(respFora),
-      datasets:[{label:"Fora do prazo", data:Object.values(respFora), backgroundColor:"#ef4444"}]
-    }
-  });
-
-  if(chartRespDentro) chartRespDentro.destroy();
-  chartRespDentro = new Chart(document.getElementById("respDentro"), {
-    type:"bar",
-    data:{
-      labels:Object.keys(respDentro),
-      datasets:[{label:"Dentro do prazo", data:Object.values(respDentro), backgroundColor:"#22c55e"}]
+      labels:Object.keys({...respDentro, ...respFora}),
+      datasets:[
+        {
+          label:"Dentro do prazo",
+          data:Object.keys({...respDentro, ...respFora}).map(r => respDentro[r] || 0),
+          backgroundColor:"#22c55e"
+        },
+        {
+          label:"Fora do prazo",
+          data:Object.keys({...respDentro, ...respFora}).map(r => respFora[r] || 0),
+          backgroundColor:"#ef4444"
+        }
+      ]
     }
   });
 
@@ -303,28 +274,8 @@ function gerarPDF(){
 carregar();
 setInterval(carregar,30000);
 
-  
-// =======================
-// 📄 EXPORT PDF AUTOMÁTICO
-// =======================
-
-function gerarPDFAuto(){
-  document.querySelectorAll("button, input").forEach(e => e.style.display = "none");
-  window.print();
-  setTimeout(() => location.reload(), 2000);
-}
-
-// ativa modo PDF via URL
-if(window.location.search.includes("pdf=1")){
-  window.addEventListener("load", () => {
-    setTimeout(() => gerarPDFAuto(), 1500);
-  });
-}
-
 </script>
 
 </body>
 </html>
-
-
 
