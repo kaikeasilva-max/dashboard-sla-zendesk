@@ -2,10 +2,16 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Power BI SLA Histórico</title>
+<title>DASHBOARD SLA / ZENDESK</title>
 
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+@media print {
+  button { display: none; }
+}
+</style>
 
 </head>
 
@@ -13,13 +19,14 @@
 
 <div class="max-w-7xl mx-auto p-6">
 
-  <h1 class="text-3xl font-bold mb-4">📊 DASHBOARD SLA HISTÓRICO</h1>
+  <!-- HEADER -->
+  <h1 class="text-3xl font-bold mb-2">📊 DASHBOARD SLA / ZENDESK</h1>
+  <p class="text-slate-500 mb-6">Visão operacional e executiva</p>
 
-  <!-- FILTRO DATA -->
-  <div class="mb-6">
-    <label class="font-bold">Filtrar por Data:</label>
-    <select id="filtroData" onchange="aplicarFiltro()" class="p-2 rounded border ml-2"></select>
-  </div>
+  <!-- BOTÃO PDF -->
+  <button onclick="gerarPDF()" class="bg-black text-white px-4 py-2 rounded mb-6">
+    📄 Baixar PDF
+  </button>
 
   <!-- CARDS -->
   <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -46,19 +53,31 @@
 
   </div>
 
-  <!-- GRÁFICOS -->
+  <!-- SLA + STATUS -->
   <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
     <div class="bg-white p-5 rounded-xl shadow">
-      <h3 class="font-bold mb-3">📈 Tendência SLA (Histórico)</h3>
-      <canvas id="chartTrend"></canvas>
-    </div>
-
-    <div class="bg-white p-5 rounded-xl shadow">
-      <h3 class="font-bold mb-3">📊 SLA Atual</h3>
+      <h3 class="font-bold mb-3">SLA</h3>
       <canvas id="chartSLA"></canvas>
     </div>
 
+    <div class="bg-white p-5 rounded-xl shadow">
+      <h3 class="font-bold mb-3">Operação</h3>
+      <canvas id="chartStatus"></canvas>
+    </div>
+
+  </div>
+
+  <!-- RESPONSÁVEIS -->
+  <div class="bg-white p-5 rounded-xl shadow mt-6">
+    <h3 class="font-bold mb-3">👤 Responsáveis (Dentro vs Fora)</h3>
+    <canvas id="chartResp"></canvas>
+  </div>
+
+  <!-- ALERTA 5 DIAS -->
+  <div class="bg-red-100 border border-red-500 p-4 rounded-xl mt-6">
+    <h3 class="font-bold text-red-600">⚠ Tickets acima de 5 dias</h3>
+    <p id="lista5"></p>
   </div>
 
 </div>
@@ -67,71 +86,19 @@
 
 const url = "https://docs.google.com/spreadsheets/d/1CafyeUwLEROswxB5RQvN8Jpt2F5VjvagpXxjF8NuK2Y/export?format=csv";
 
-let raw = [];
-let dadosProcessados = [];
+let rawData = [];
 
 fetch(url)
 .then(r => r.text())
 .then(data => {
 
-  raw = data.split("\n").slice(1);
+  rawData = data.split("\n").slice(1);
 
-  processar(raw);
-
-  montarFiltroDatas();
-
-  aplicarFiltro();
+  render(rawData);
 
 });
 
-function processar(linhas) {
-
-  dadosProcessados = linhas.map(l => {
-
-    const c = l.split(",");
-
-    return {
-      responsavel: c[4],
-      sla: c[6],
-      entrada: Number(c[8] || 0),
-      finalizado: Number(c[9] || 0),
-      pendente: Number(c[10] || 0),
-      data: c[11] // Data dia
-    };
-
-  }).filter(x => x.data);
-
-}
-
-// FILTRO DE DATAS
-function montarFiltroDatas() {
-
-  let datas = [...new Set(dadosProcessados.map(d => d.data))];
-
-  let select = document.getElementById("filtroData");
-
-  select.innerHTML = `<option value="todas">Todas as Datas</option>`;
-
-  datas.forEach(d => {
-    select.innerHTML += `<option value="${d}">${d}</option>`;
-  });
-
-}
-
-function aplicarFiltro() {
-
-  let filtro = document.getElementById("filtroData").value;
-
-  let dados = dadosProcessados;
-
-  if (filtro !== "todas") {
-    dados = dados.filter(d => d.data === filtro);
-  }
-
-  atualizarDashboard(dados);
-}
-
-function atualizarDashboard(dados) {
+function render(linhas) {
 
   let entrada = 0;
   let finalizados = 0;
@@ -139,18 +106,50 @@ function atualizarDashboard(dados) {
   let fora = 0;
   let dentro = 0;
 
-  let trend = {};
+  let respDentro = {};
+  let respFora = {};
+  let tickets5dias = [];
 
-  dados.forEach(d => {
+  linhas.forEach(l => {
 
-    entrada += d.entrada;
-    finalizados += d.finalizado;
-    pendentes += d.pendente;
+    const c = l.split(",");
 
-    if (d.sla?.includes("FORA")) fora++;
-    if (d.sla?.includes("DENTRO")) dentro++;
+    if (!c[0]) return;
 
-    trend[d.data] = (trend[d.data] || 0) + (d.sla?.includes("FORA") ? 1 : 0);
+    let ticket = c[0];
+    let responsavel = c[4];
+    let sla = c[6];
+    let dataEntrada = new Date(c[2]);
+
+    // cards
+    entrada += Number(c[8] || 0);
+    finalizados += Number(c[9] || 0);
+    pendentes += Number(c[10] || 0);
+
+    if (sla?.includes("FORA")) fora++;
+    if (sla?.includes("DENTRO")) dentro++;
+
+    // responsável
+    if (responsavel) {
+
+      if (sla?.includes("DENTRO")) {
+        respDentro[responsavel] = (respDentro[responsavel] || 0) + 1;
+      }
+
+      if (sla?.includes("FORA")) {
+        respFora[responsavel] = (respFora[responsavel] || 0) + 1;
+      }
+    }
+
+    // +5 dias
+    if (dataEntrada) {
+      let hoje = new Date();
+      let diff = Math.floor((hoje - dataEntrada) / (1000 * 60 * 60 * 24));
+
+      if (diff > 5) {
+        tickets5dias.push(ticket);
+      }
+    }
 
   });
 
@@ -159,6 +158,10 @@ function atualizarDashboard(dados) {
   document.getElementById("finalizados").innerText = finalizados;
   document.getElementById("pendentes").innerText = pendentes;
   document.getElementById("fora").innerText = fora;
+
+  // ALERTA 5 DIAS
+  document.getElementById("lista5").innerText =
+    tickets5dias.length ? tickets5dias.join(", ") : "Nenhum ticket crítico";
 
   // SLA
   new Chart(document.getElementById("chartSLA"), {
@@ -169,19 +172,38 @@ function atualizarDashboard(dados) {
     }
   });
 
-  // TENDÊNCIA SLA (CURVA)
-  new Chart(document.getElementById("chartTrend"), {
-    type: "line",
+  // STATUS
+  new Chart(document.getElementById("chartStatus"), {
+    type: "bar",
     data: {
-      labels: Object.keys(trend),
-      datasets: [{
-        label: "Fora do Prazo",
-        data: Object.values(trend),
-        borderWidth: 3
-      }]
+      labels: ["Entrada", "Finalizados", "Pendentes"],
+      datasets: [{ data: [entrada, finalizados, pendentes] }]
     }
   });
 
+  // RESPONSÁVEIS
+  new Chart(document.getElementById("chartResp"), {
+    type: "bar",
+    data: {
+      labels: Object.keys(respDentro),
+      datasets: [
+        {
+          label: "Dentro do Prazo",
+          data: Object.values(respDentro)
+        },
+        {
+          label: "Fora do Prazo",
+          data: Object.keys(respDentro).map(k => respFora[k] || 0)
+        }
+      ]
+    }
+  });
+
+}
+
+// PDF
+function gerarPDF() {
+  window.print();
 }
 
 </script>
