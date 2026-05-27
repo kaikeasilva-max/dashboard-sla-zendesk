@@ -8,11 +8,11 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-.card { transition: 0.3s; }
+.card { transition: 0.3s; cursor:pointer; }
 .card:hover { transform: scale(1.03); }
 
 @media print {
-  button, input { display: none; }
+  button, select { display: none; }
 }
 </style>
 </head>
@@ -24,50 +24,48 @@
 <!-- HEADER -->
 <div class="mb-4">
   <h1 class="text-3xl font-bold">📊 DASHBOARD SLA / ZENDESK</h1>
-  <p class="text-slate-500">Visão executiva (Power BI Style)</p>
+  <p class="text-slate-500">Visão operacional</p>
 </div>
 
-<!-- FILTROS POWER BI -->
-<div class="flex flex-wrap gap-3 items-center mb-6">
+<!-- FILTRO SIMPLES (1 DATA SÓ) -->
+<div class="flex gap-3 items-center mb-6">
 
-  <button onclick="filtroRapido('hoje')" class="bg-black text-white px-3 py-2 rounded">Hoje</button>
-  <button onclick="filtroRapido('ontem')" class="bg-gray-700 text-white px-3 py-2 rounded">Ontem</button>
-  <button onclick="filtroRapido('7d')" class="bg-blue-600 text-white px-3 py-2 rounded">Últimos 7 dias</button>
-  <button onclick="filtroRapido('30d')" class="bg-purple-600 text-white px-3 py-2 rounded">Últimos 30 dias</button>
-  <button onclick="filtroRapido('mes')" class="bg-green-600 text-white px-3 py-2 rounded">Este mês</button>
+  <input type="date" id="dataFiltro" class="p-2 border rounded">
 
-  <input type="date" id="dataInicio" class="p-2 border rounded">
-  <input type="date" id="dataFim" class="p-2 border rounded">
+  <button onclick="aplicarFiltro()" class="bg-black text-white px-4 py-2 rounded">
+    🔎 Filtrar
+  </button>
 
-  <button onclick="aplicarFiltro()" class="bg-black text-white px-4 py-2 rounded">🔎 Filtrar</button>
-  <button onclick="resetFiltro()" class="bg-gray-500 text-white px-4 py-2 rounded">Reset</button>
+  <button onclick="resetFiltro()" class="bg-gray-500 text-white px-4 py-2 rounded">
+    Reset
+  </button>
 
 </div>
 
-<!-- CARDS EXECUTIVOS -->
+<!-- CARDS -->
 <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
 
-  <div class="card bg-white p-5 rounded-xl shadow">
+  <div onclick="abrirPorCard('total')" class="card bg-white p-5 rounded-xl shadow">
     <p>📦 Total</p>
     <h2 id="total" class="text-2xl font-bold">0</h2>
   </div>
 
-  <div class="card bg-white p-5 rounded-xl shadow">
+  <div onclick="abrirPorCard('finalizados')" class="card bg-white p-5 rounded-xl shadow">
     <p>🟢 Finalizados</p>
     <h2 id="finalizados" class="text-2xl font-bold">0</h2>
   </div>
 
-  <div class="card bg-white p-5 rounded-xl shadow">
+  <div onclick="abrirPorCard('pendentes')" class="card bg-white p-5 rounded-xl shadow">
     <p>🟡 Pendentes</p>
     <h2 id="pendentes" class="text-2xl font-bold">0</h2>
   </div>
 
-  <div class="card bg-white p-5 rounded-xl shadow">
-    <p>🔴 Fora do SLA</p>
+  <div onclick="abrirPorCard('fora')" class="card bg-white p-5 rounded-xl shadow">
+    <p>🔴 Fora SLA</p>
     <h2 id="fora" class="text-2xl font-bold">0</h2>
   </div>
 
-  <div class="card bg-white p-5 rounded-xl shadow">
+  <div onclick="abrirPorCard('critico')" class="card bg-white p-5 rounded-xl shadow">
     <p>⚠ Críticos +5d</p>
     <h2 id="critico" class="text-2xl font-bold">0</h2>
   </div>
@@ -103,6 +101,20 @@
 
 </div>
 
+<!-- MODAL DRILL DOWN -->
+<div id="modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+  <div class="bg-white w-3/4 max-h-[80vh] overflow-auto rounded-xl shadow-xl p-6">
+
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-xl font-bold">📌 Tickets</h2>
+      <button onclick="fecharModal()" class="text-red-600 font-bold text-xl">✕</button>
+    </div>
+
+    <div id="conteudoModal" class="space-y-2"></div>
+
+  </div>
+</div>
+
 <script>
 
 const apiURL = "https://script.google.com/macros/s/AKfycbzKjRpXnOG1I3P8NA90mPYVILS_317gx_EZUuio7fMrcMwJiIjwmWYjVOqD73Hkmw2CeQ/exec";
@@ -110,104 +122,45 @@ const apiURL = "https://script.google.com/macros/s/AKfycbzKjRpXnOG1I3P8NA90mPYVI
 let dadosCache = [];
 let chartSLA, chartOp, chartResp;
 
-function normalizarData(d){
+function normalizar(d){
   return String(d).split("T")[0];
 }
 
-// 🚀 CARREGAR API
-function carregar() {
+// 🚀 CARREGAR
+function carregar(){
 
 fetch(apiURL + "?t=" + new Date().getTime())
 .then(r => r.json())
 .then(data => {
-
   dadosCache = data;
-  render(dadosCache);
-
+  render(data);
 });
 
 }
 
-// 🎯 FILTROS RÁPIDOS POWER BI
-function filtroRapido(tipo){
-
-  let hoje = new Date();
-  let ini, fim;
-
-  if(tipo === "hoje"){
-    ini = fim = hoje;
-  }
-
-  if(tipo === "ontem"){
-    ini = fim = new Date();
-    ini.setDate(hoje.getDate() - 1);
-  }
-
-  if(tipo === "7d"){
-    ini = new Date();
-    ini.setDate(hoje.getDate() - 7);
-    fim = hoje;
-  }
-
-  if(tipo === "30d"){
-    ini = new Date();
-    ini.setDate(hoje.getDate() - 30);
-    fim = hoje;
-  }
-
-  if(tipo === "mes"){
-    ini = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-    fim = hoje;
-  }
-
-  filtrarPorDatas(ini, fim);
-}
-
-// 📅 FILTRO INTERVALO
-function filtrarPorDatas(ini, fim){
-
-  let inicio = normalizarData(ini);
-  let fimData = normalizarData(fim);
-
-  let base = dadosCache.filter(d => {
-    let data = normalizarData(d.data_dia);
-    return data >= inicio && data <= fimData;
-  });
-
-  render(base);
-}
-
-// 🔎 INPUT MANUAL
+// 🔎 FILTRO SIMPLES (1 DATA)
 function aplicarFiltro(){
 
-  let ini = document.getElementById("dataInicio").value;
-  let fim = document.getElementById("dataFim").value;
+  let f = document.getElementById("dataFiltro").value;
 
-  if(!ini && !fim){
+  if(!f){
     render(dadosCache);
     return;
   }
 
-  let base = dadosCache.filter(d => {
-    let data = normalizarData(d.data_dia);
-
-    if(ini && !fim) return data >= ini;
-    if(!ini && fim) return data <= fim;
-
-    return data >= ini && data <= fim;
-  });
+  let base = dadosCache.filter(d =>
+    normalizar(d.data_dia) === f
+  );
 
   render(base);
 }
 
-// 🔄 RESET
 function resetFiltro(){
-  document.getElementById("dataInicio").value = "";
-  document.getElementById("dataFim").value = "";
+  document.getElementById("dataFiltro").value = "";
   render(dadosCache);
 }
 
-// 📊 RENDER EXECUTIVO
+// 📊 RENDER
 function render(dados){
 
   let total = dados.length;
@@ -218,7 +171,7 @@ function render(dados){
   let critico = 0;
 
   let resp = {};
-  let tickets = [];
+  let ticketsCriticos = [];
 
   dados.forEach(d => {
 
@@ -228,12 +181,11 @@ function render(dados){
     if(d.sla_status?.includes("FORA")) fora++;
     if(d.sla_status?.includes("DENTRO")) dentro++;
 
-    let dt = new Date(d.data_entrada);
-    let diff = Math.floor((new Date() - dt)/(1000*60*60*24));
+    let diff = Math.floor((new Date() - new Date(d.data_entrada)) / (1000*60*60*24));
 
     if(diff > 5){
       critico++;
-      tickets.push(d.ticket_id);
+      ticketsCriticos.push(d);
     }
 
     if(d.responsavel){
@@ -242,6 +194,7 @@ function render(dados){
 
   });
 
+  // CARDS
   document.getElementById("total").innerText = total;
   document.getElementById("finalizados").innerText = finalizados;
   document.getElementById("pendentes").innerText = pendentes;
@@ -249,29 +202,105 @@ function render(dados){
   document.getElementById("critico").innerText = critico;
 
   document.getElementById("lista").innerText =
-    tickets.length ? tickets.join(", ") : "Nenhum crítico";
+    ticketsCriticos.length ? ticketsCriticos.map(t=>t.ticket_id).join(", ") : "Nenhum crítico";
 
+  // SLA
   if(chartSLA) chartSLA.destroy();
   chartSLA = new Chart(document.getElementById("sla"), {
     type:"doughnut",
-    data:{ labels:["Dentro","Fora"], datasets:[{data:[dentro,fora]}]}
+    data:{ labels:["Dentro","Fora"], datasets:[{data:[dentro,fora]}] },
+    options:{
+      onClick:(e,el)=>{
+        if(el.length){
+          let idx = el[0].index;
+          let tipo = idx === 0 ? "DENTRO" : "FORA";
+          abrirModal(dados.filter(d => d.sla_status?.includes(tipo)));
+        }
+      }
+    }
   });
 
+  // OPERAÇÃO
   if(chartOp) chartOp.destroy();
   chartOp = new Chart(document.getElementById("operacao"), {
     type:"bar",
-    data:{ labels:["Total","Finalizados","Pendentes"], datasets:[{data:[total,finalizados,pendentes]}]}
+    data:{ labels:["Total","Finalizados","Pendentes"], datasets:[{data:[total,finalizados,pendentes]}] }
   });
 
+  // RESPONSÁVEL
   if(chartResp) chartResp.destroy();
   chartResp = new Chart(document.getElementById("resp"), {
     type:"bar",
     data:{
       labels:Object.keys(resp),
       datasets:[{label:"Tickets", data:Object.values(resp)}]
+    },
+    options:{
+      onClick:(e,el)=>{
+        if(el.length){
+          let idx = el[0].index;
+          let nome = Object.keys(resp)[idx];
+          abrirModal(dados.filter(d => d.responsavel === nome));
+        }
+      }
     }
   });
 
+}
+
+// 📌 MODAL
+function abrirModal(lista){
+
+  let html = lista.map(t => `
+    <div class="border p-3 rounded bg-slate-50">
+      🎫 <b>${t.ticket_id}</b><br>
+      👤 ${t.responsavel}<br>
+      📅 ${t.data_entrada}<br>
+      📊 ${t.sla_status}<br>
+      📌 ${t.status}
+    </div>
+  `).join("");
+
+  document.getElementById("conteudoModal").innerHTML =
+    html || "Sem dados";
+
+  document.getElementById("modal").classList.remove("hidden");
+}
+
+function fecharModal(){
+  document.getElementById("modal").classList.add("hidden");
+}
+
+// CARD DRILL
+function abrirPorCard(tipo){
+
+  let lista = [];
+
+  if(tipo === "finalizados"){
+    lista = dadosCache.filter(d =>
+      d.status === "finalizado" || d.status === "tabulado"
+    );
+  }
+
+  if(tipo === "pendentes"){
+    lista = dadosCache.filter(d =>
+      !(d.status === "finalizado" || d.status === "tabulado")
+    );
+  }
+
+  if(tipo === "fora"){
+    lista = dadosCache.filter(d =>
+      d.sla_status?.includes("FORA")
+    );
+  }
+
+  if(tipo === "critico"){
+    lista = dadosCache.filter(d =>
+      Math.floor((new Date() - new Date(d.data_entrada))/(1000*60*60*24)) > 5
+    );
+  }
+
+  abrirModal(lista);
 }
 
 // INIT
