@@ -62,7 +62,7 @@
     <h2 id="pendentes" class="text-2xl font-bold">0</h2>
   </div>
 
-  <div class="card bg-white p-5 rounded-xl shadow">
+  <div class="card bg-white p-5 rounded-xl shadow" onclick="abrirPorSLA('FORA')">
     <p>🔴 Fora SLA</p>
     <h2 id="fora" class="text-2xl font-bold">0</h2>
   </div>
@@ -101,6 +101,7 @@
 
 </div>
 
+<!-- MODAL -->
 <div id="modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
   <div class="bg-white w-3/4 max-h-[80vh] overflow-auto rounded-xl shadow-xl p-6">
 
@@ -121,6 +122,9 @@ const apiURL = "https://script.google.com/macros/s/AKfycbzKjRpXnOG1I3P8NA90mPYVI
 let dadosCache = [];
 let chartSLA, chartOp;
 let chartRespDentro, chartRespFora;
+
+// 🔥 NOVO: lista fora SLA
+let ticketsFora = [];
 
 function normalizar(d){
   return String(d).split("T")[0];
@@ -144,30 +148,11 @@ function fecharModal(){
   document.getElementById("modal").classList.add("hidden");
 }
 
-/* DRILL DOWN CORRIGIDO */
-function addClick(chart, dados, tipo){
-
-  chart.options.onClick = (evt, el) => {
-    if(!el.length) return;
-
-    const index = el[0].index;
-    const label = chart.data.labels[index];
-
-    const lista = dados.filter(d => {
-
-      if(tipo === "DENTRO"){
-        return d.responsavel === label && d.sla_status?.includes("DENTRO");
-      }
-
-      if(tipo === "FORA"){
-        return d.responsavel === label && d.sla_status?.includes("FORA");
-      }
-
-      return false;
-    });
-
-    abrirModal(lista);
-  };
+// 🔥 SLA CLICK DRILLDOWN
+function abrirPorSLA(tipo){
+  if(tipo === "FORA"){
+    abrirModal(ticketsFora);
+  }
 }
 
 function carregar(){
@@ -185,11 +170,6 @@ function aplicarFiltro(){
 
   let ini = document.getElementById("dataInicio").value;
   let fim = document.getElementById("dataFim").value;
-
-  if(!ini && !fim){
-    render(dadosCache);
-    return;
-  }
 
   let base = dadosCache.filter(d => {
     let data = normalizar(d.data_dia);
@@ -217,6 +197,8 @@ function render(dados){
   let critico = 0;
 
   let ticketsCriticos = [];
+  ticketsFora = [];
+
   let respDentro = {};
   let respFora = {};
 
@@ -226,7 +208,11 @@ function render(dados){
     finalizados += Number(d.saida || 0);
     pendentes += Number(d.pendente || 0);
 
-    if(d.sla_status?.includes("FORA")) fora++;
+    if(d.sla_status?.includes("FORA")){
+      fora++;
+      ticketsFora.push(d);
+    }
+
     if(d.sla_status?.includes("DENTRO")) dentro++;
 
     let diff = Math.floor((new Date() - new Date(d.data_entrada)) / (1000*60*60*24));
@@ -288,10 +274,6 @@ function render(dados){
       datasets:[{label:"Dentro do prazo", data:Object.values(respDentro), backgroundColor:"#22c55e"}]
     }
   });
-
-  // DRILL DOWN ATIVO
-  addClick(chartRespDentro, dados, "DENTRO");
-  addClick(chartRespFora, dados, "FORA");
 
 }
 
