@@ -115,9 +115,6 @@ let chartSLA, chartOp, chartResp;
 
 let ticketsFora = [];
 
-let respDentroMap = {};
-let respForaMap = {};
-
 function normalizar(d){
   return String(d).split("T")[0];
 }
@@ -140,29 +137,6 @@ function fecharModal(){
   document.getElementById("modal").classList.add("hidden");
 }
 
-/* ===== CLICK RESPONSÁVEIS (ADICIONADO SEM MEXER NO RESTO) ===== */
-function bindClicksResponsaveis(chart, dados, tipo){
-
-  chart.options.onClick = (evt, el) => {
-    if(!el.length) return;
-
-    const label = chart.data.labels[el[0].index];
-
-    let lista = dadosCache.filter(d => d.responsavel === label);
-
-    if(tipo === "DENTRO"){
-      lista = lista.filter(d => d.sla_status?.includes("DENTRO"));
-    }
-
-    if(tipo === "FORA"){
-      lista = lista.filter(d => d.sla_status?.includes("FORA"));
-    }
-
-    abrirModal(lista);
-  };
-}
-
-/* ===== DRILL DOWN CARD ===== */
 function bindClicks(){
   const card = document.getElementById("cardFora");
   if(card){
@@ -293,8 +267,27 @@ function render(dados){
     }
   });
 
-  // 🔥 CLIQUE ADICIONADO SEM ALTERAR NADA DO RESTO
-  bindClicksResponsaveis(chartResp, dados, "TODOS");
+  // 🔥 AQUI ESTÁ A CORREÇÃO REAL DO CLIQUE (SEPARADO POR DATASET)
+  chartResp.options.onClick = (evt, elements) => {
+
+    if(!elements.length) return;
+
+    const el = elements[0];
+    const label = chartResp.data.labels[el.index];
+    const dataset = el.datasetIndex;
+
+    let lista = dadosCache.filter(d => d.responsavel === label);
+
+    if(dataset === 0){
+      lista = lista.filter(d => d.sla_status?.includes("DENTRO"));
+    }
+
+    if(dataset === 1){
+      lista = lista.filter(d => d.sla_status?.includes("FORA"));
+    }
+
+    abrirModal(lista);
+  };
 
   bindClicks();
 }
@@ -305,10 +298,6 @@ function gerarPDF(){
 
 carregar();
 setInterval(carregar,30000);
-
-// =======================
-// 📄 EXPORT PDF AUTOMÁTICO
-// =======================
 
 function gerarPDFAuto(){
   document.querySelectorAll("button, input").forEach(e => e.style.display = "none");
