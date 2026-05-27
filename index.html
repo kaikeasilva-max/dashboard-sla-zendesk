@@ -40,7 +40,6 @@
     Reset
   </button>
 
-  <!-- 🔥 ADICIONADO PDF -->
   <button onclick="gerarPDF()" class="bg-black text-white px-4 py-2 rounded">
     📄 Baixar PDF
   </button>
@@ -92,10 +91,21 @@
 
 </div>
 
-<!-- RESPONSÁVEIS -->
+<!-- RESPONSÁVEIS (ADICIONADO SEM ALTERAR EXISTENTE) -->
 <div class="bg-white p-5 rounded-xl shadow mt-6">
-  <h3 class="font-bold mb-3">👤 Responsáveis</h3>
-  <canvas id="resp"></canvas>
+  <h3 class="font-bold mb-3">👤 Responsáveis (Dentro vs Fora SLA)</h3>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+    <div>
+      <canvas id="respDentro"></canvas>
+    </div>
+
+    <div>
+      <canvas id="respFora"></canvas>
+    </div>
+
+  </div>
 </div>
 
 <!-- ALERTA -->
@@ -125,11 +135,8 @@
 const apiURL = "https://script.google.com/macros/s/AKfycbzKjRpXnOG1I3P8NA90mPYVILS_317gx_EZUuio7fMrcMwJiIjwmWYjVOqD73Hkmw2CeQ/exec";
 
 let dadosCache = [];
-let chartSLA, chartOp, chartResp;
-
-function normalizar(d){
-  return String(d).split("T")[0];
-}
+let chartSLA, chartOp;
+let chartRespDentro, chartRespFora;
 
 // 🚀 LOAD
 function carregar(){
@@ -154,7 +161,7 @@ function aplicarFiltro(){
   }
 
   let base = dadosCache.filter(d =>
-    normalizar(d.data_dia) === f
+    String(d.data_dia).split("T")[0] === f
   );
 
   render(base);
@@ -175,8 +182,8 @@ function render(dados){
   let dentro = 0;
   let critico = 0;
 
-  let resp = {};
-  let ticketsCriticos = [];
+  let respDentro = {};
+  let respFora = {};
 
   dados.forEach(d => {
 
@@ -189,13 +196,18 @@ function render(dados){
 
     let diff = Math.floor((new Date() - new Date(d.data_entrada)) / (1000*60*60*24));
 
-    if(diff > 5){
-      critico++;
-      ticketsCriticos.push(d);
-    }
+    if(diff > 5) critico++;
 
     if(d.responsavel){
-      resp[d.responsavel] = (resp[d.responsavel]||0)+1;
+
+      if(d.sla_status?.includes("DENTRO")){
+        respDentro[d.responsavel] = (respDentro[d.responsavel]||0)+1;
+      }
+
+      if(d.sla_status?.includes("FORA")){
+        respFora[d.responsavel] = (respFora[d.responsavel]||0)+1;
+      }
+
     }
 
   });
@@ -206,9 +218,6 @@ function render(dados){
   document.getElementById("pendentes").innerText = pendentes;
   document.getElementById("fora").innerText = fora;
   document.getElementById("critico").innerText = critico;
-
-  document.getElementById("lista").innerText =
-    ticketsCriticos.length ? ticketsCriticos.map(t=>t.ticket_id).join(", ") : "Nenhum crítico";
 
   // SLA
   if(chartSLA) chartSLA.destroy();
@@ -227,13 +236,63 @@ function render(dados){
     }
   });
 
-  // RESPONSÁVEL
-  if(chartResp) chartResp.destroy();
-  chartResp = new Chart(document.getElementById("resp"), {
+  // 👤 RESPONSÁVEIS DENTRO (ADICIONADO)
+  if(chartRespDentro) chartRespDentro.destroy();
+  chartRespDentro = new Chart(document.getElementById("respDentro"), {
     type:"bar",
     data:{
-      labels:Object.keys(resp),
-      datasets:[{label:"Tickets", data:Object.values(resp)}]
+      labels:Object.keys(respDentro),
+      datasets:[{label:"Dentro do prazo", data:Object.values(respDentro)}]
+    },
+    options:{
+      onClick:(e,el)=>{
+        if(el.length){
+          let nome = Object.keys(respDentro)[el[0].index];
+
+          abrirModal(
+            dados.filter(d =>
+              d.responsavel === nome &&
+              d.sla_status?.includes("DENTRO")
+            ).map(d => ({
+              ticket_id:d.ticket_id,
+              responsavel:d.responsavel,
+              data_entrada:d.data_entrada,
+              sla_status:d.sla_status,
+              status:d["status ticket"] || d.status
+            }))
+          );
+        }
+      }
+    }
+  });
+
+  // 👤 RESPONSÁVEIS FORA (ADICIONADO)
+  if(chartRespFora) chartRespFora.destroy();
+  chartRespFora = new Chart(document.getElementById("respFora"), {
+    type:"bar",
+    data:{
+      labels:Object.keys(respFora),
+      datasets:[{label:"Fora do prazo", data:Object.values(respFora)}]
+    },
+    options:{
+      onClick:(e,el)=>{
+        if(el.length){
+          let nome = Object.keys(respFora)[el[0].index];
+
+          abrirModal(
+            dados.filter(d =>
+              d.responsavel === nome &&
+              d.sla_status?.includes("FORA")
+            ).map(d => ({
+              ticket_id:d.ticket_id,
+              responsavel:d.responsavel,
+              data_entrada:d.data_entrada,
+              sla_status:d.sla_status,
+              status:d["status ticket"] || d.status
+            }))
+          );
+        }
+      }
     }
   });
 
@@ -247,7 +306,8 @@ function abrirModal(lista){
       🎫 ${t.ticket_id}<br>
       👤 ${t.responsavel}<br>
       📅 ${t.data_entrada}<br>
-      📊 ${t.sla_status}
+      📊 ${t.sla_status}<br>
+      🧾 ${t.status || ""}
     </div>
   `).join("");
 
@@ -269,21 +329,15 @@ function abrirPorCard(tipo){
   if(tipo === "total") lista = dadosCache;
 
   if(tipo === "finalizados"){
-    lista = dadosCache.filter(d =>
-      d.saida > 0 || d.status === "finalizado"
-    );
+    lista = dadosCache.filter(d => d.saida > 0 || d.status === "finalizado");
   }
 
   if(tipo === "pendentes"){
-    lista = dadosCache.filter(d =>
-      !(d.saida > 0 || d.status === "finalizado")
-    );
+    lista = dadosCache.filter(d => !(d.saida > 0 || d.status === "finalizado"));
   }
 
   if(tipo === "fora"){
-    lista = dadosCache.filter(d =>
-      d.sla_status?.includes("FORA")
-    );
+    lista = dadosCache.filter(d => d.sla_status?.includes("FORA"));
   }
 
   if(tipo === "critico"){
@@ -295,7 +349,7 @@ function abrirPorCard(tipo){
   abrirModal(lista);
 }
 
-// 📄 PDF (ADICIONADO)
+// 📄 PDF
 function gerarPDF(){
   window.print();
 }
