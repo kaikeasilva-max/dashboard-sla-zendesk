@@ -12,7 +12,7 @@
 .card:hover { transform: scale(1.03); }
 
 @media print {
-  button, input { display:none; }
+  button, input, .no-print { display:none !important; }
 }
 </style>
 </head>
@@ -21,53 +21,53 @@
 
 <div class="max-w-7xl mx-auto p-6">
 
-<div class="mb-4">
-  <h1 class="text-3xl font-bold">📊 DASHBOARD SLA / ZENDESK</h1>
-  <p class="text-slate-500">Visão operacional</p>
+<div class="mb-4 flex justify-between items-center">
+  <div>
+    <h1 class="text-3xl font-bold">📊 DASHBOARD SLA / ZENDESK</h1>
+    <p class="text-slate-500">Visão operacional e estratégica blindada</p>
+  </div>
+  <div class="no-print">
+    <input type="text" id="buscaRapida" oninput="filtrarPorTexto()" placeholder="🔎 Buscar por Ticket ou Agente..." class="p-2 border rounded-xl w-64 shadow-sm bg-white">
+  </div>
 </div>
 
-<div class="flex gap-3 items-center mb-6">
-
+<div class="flex gap-3 items-center mb-6 no-print">
   <input type="date" id="dataInicio" class="p-2 border rounded">
   <input type="date" id="dataFim" class="p-2 border rounded">
 
-  <button onclick="aplicarFiltro()" class="bg-black text-white px-4 py-2 rounded">🔎 Filtrar</button>
+  <button onclick="carregar()" class="bg-black text-white px-4 py-2 rounded">🔎 Filtrar</button>
   <button onclick="resetFiltro()" class="bg-gray-500 text-white px-4 py-2 rounded">Reset</button>
   <button onclick="gerarPDF()" class="bg-black text-white px-4 py-2 rounded">📄 Baixar PDF</button>
-
 </div>
 
 <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-
-  <div class="card bg-white p-5 rounded-xl shadow">
+  <div class="card bg-white p-5 rounded-xl shadow" onclick="filtrarCards('TODOS')">
     <p>📦 Total (Entrada)</p>
     <h2 id="total" class="text-2xl font-bold">0</h2>
   </div>
 
-  <div class="card bg-white p-5 rounded-xl shadow">
+  <div class="card bg-white p-5 rounded-xl shadow" onclick="filtrarCards('SAIDA')">
     <p>🟢 Finalizados (Saída)</p>
     <h2 id="finalizados" class="text-2xl font-bold">0</h2>
   </div>
 
-  <div class="card bg-white p-5 rounded-xl shadow">
+  <div class="card bg-white p-5 rounded-xl shadow" onclick="filtrarCards('PENDENTE')">
     <p>🟡 Pendentes</p>
     <h2 id="pendentes" class="text-2xl font-bold">0</h2>
   </div>
 
-  <div class="card bg-white p-5 rounded-xl shadow" id="cardFora">
+  <div class="card bg-white p-5 rounded-xl shadow" id="cardFora" onclick="filtrarCards('FORA')">
     <p>🔴 Fora SLA</p>
     <h2 id="fora" class="text-2xl font-bold">0</h2>
   </div>
 
-  <div class="card bg-white p-5 rounded-xl shadow">
-    <p>⚠ +5 dias</p>
+  <div class="card bg-white p-5 rounded-xl shadow" onclick="filtrarCards('CRITICO')">
+    <p>⚠ +5 dias | <span class="text-blue-600 font-bold" id="tmtValue">TMT: 0d</span></p>
     <h2 id="critico" class="text-2xl font-bold">0</h2>
   </div>
-
 </div>
 
 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-
   <div class="bg-white p-5 rounded-xl shadow">
     <h3 class="font-bold mb-3">📈 SLA</h3>
     <canvas id="sla"></canvas>
@@ -77,7 +77,6 @@
     <h3 class="font-bold mb-3">📊 Operação</h3>
     <canvas id="operacao"></canvas>
   </div>
-
 </div>
 
 <div class="bg-white p-5 rounded-xl shadow mt-6">
@@ -94,14 +93,11 @@
 
 <div id="modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
   <div class="bg-white w-3/4 max-h-[80vh] overflow-auto rounded-xl shadow-xl p-6">
-
     <div class="flex justify-between items-center mb-4">
       <h2 class="text-xl font-bold">📌 Tickets</h2>
       <button onclick="fecharModal()" class="text-red-600 font-bold text-xl">✕</button>
     </div>
-
     <div id="conteudoModal"></div>
-
   </div>
 </div>
 
@@ -110,11 +106,11 @@
 const apiURL = "https://script.google.com/macros/s/AKfycbzKjRpXnOG1I3P8NA90mPYVILS_317gx_EZUuio7fMrcMwJiIjwmWYjVOqD73Hkmw2CeQ/exec";
 
 let dadosCache = [];
+let dadosFiltradosAtuais = [];
 let chartSLA, chartOp, chartResp;
 let ticketsFora = [];
 
 function abrirModal(lista){
-  // 🔥 CORREÇÃO: Agora puxa "t.status" primeiro (Coluna F / Status Verdadeiro) para não mostrar o texto estático
   let html = lista.map(t => `
     <div class="border p-3 rounded bg-slate-50 mb-2">
       🎫 <b>${t.ticket_id}</b><br>
@@ -131,62 +127,91 @@ function fecharModal(){
   document.getElementById("modal").classList.add("hidden");
 }
 
-function bindClicks(){
-  const card = document.getElementById("cardFora");
-  if(card){
-    card.onclick = () => abrirModal(ticketsFora);
-  }
-}
-
 function carregar(){
-fetch(apiURL + "?t=" + new Date().getTime())
-.then(r => r.json())
-.then(data => {
-  dadosCache = data;
-  
-  let hoje = new Date().toISOString().split('T')[0];
-  if (!document.getElementById("dataInicio").value && !document.getElementById("dataFim").value) {
-    document.getElementById("dataInicio").value = hoje;
-    document.getElementById("dataFim").value = hoje;
-  }
-  
-  aplicarFiltro();
-});
-}
-
-function aplicarFiltro(){
   let campoIni = document.getElementById("dataInicio").value;
   let campoFim = document.getElementById("dataFim").value;
+  
+  // Define hoje por padrão se estiver vazio
+  let hoje = new Date().toISOString().split('T')[0];
+  if (!campoIni && !campoFim) {
+    document.getElementById("dataInicio").value = hoje;
+    document.getElementById("dataFim").value = hoje;
+    campoIni = hoje;
+    campoFim = hoje;
+  }
 
-  let base = dadosCache.filter(d => {
-    let dataItem = d.data_dia;
-    if (!dataItem) return false;
-    if (campoIni && dataItem < campoIni) return false;
-    if (campoFim && dataItem > campoFim) return false;
-    return true;
+  // Passa os parâmetros de data direto para a Planilha filtrar na fonte
+  let urlComFiltro = `${apiURL}?ini=${campoIni}&fim=${campoFim}&t=${new Date().getTime()}`;
+
+  fetch(urlComFiltro)
+  .then(r => r.json())
+  .then(data => {
+    dadosCache = data;
+    dadosFiltradosAtuais = data;
+    render(data);
   });
+}
 
-  render(base);
+function filtrarPorTexto() {
+  let termo = document.getElementById("buscaRapida").value.toUpperCase();
+  let resultado = dadosCache.filter(d => {
+    return String(d.ticket_id).toUpperCase().includes(termo) || String(d.responsavel).toUpperCase().includes(termo);
+  });
+  dadosFiltradosAtuais = resultado;
+  render(resultado);
+}
+
+// 🔥 MELHORIA: CLIQUES DIRETOS NOS CARDS FILTRAM OS GRÁFICOS ABAIXO
+function filtrarCards(tipo) {
+  let resultado = dadosCache;
+  if (tipo === 'SAIDA') resultado = dadosCache.filter(d => Number(d.saida) === 1);
+  if (tipo === 'PENDENTE') resultado = dadosCache.filter(d => Number(d.pendente) === 1);
+  if (tipo === 'FORA') resultado = dadosCache.filter(d => d.sla_status?.includes("FORA"));
+  if (tipo === 'CRITICO') {
+    resultado = dadosCache.filter(d => {
+      if(!d.data_entrada) return false;
+      let diff = Math.floor((new Date() - new Date(d.data_entrada)) / (1000*60*60*24));
+      return diff > 5;
+    });
+  }
+  dadosFiltradosAtuais = resultado;
+  render(resultado);
 }
 
 function resetFiltro(){
   let hoje = new Date().toISOString().split('T')[0];
   document.getElementById("dataInicio").value = hoje;
   document.getElementById("dataFim").value = hoje;
-  aplicarFiltro();
+  document.getElementById("buscaRapida").value = "";
+  carregar();
 }
 
 function render(dadosCompletos){
-  
   let total = 0;
   let finalizados = 0;
   let pendentes = 0;
+  let somaDiasTratativa = 0;
+  let qtdTicketsComTratativa = 0;
 
   dadosCompletos.forEach(d => {
     total += Number(d.entrada || 0);
     finalizados += Number(d.saida || 0);
     pendentes += Number(d.pendente || 0);
+
+    // 🔥 MELHORIA: CÁLCULO DO TEMPO MÉDIO DE TRATATIVA (TMT)
+    if (d.data_entrada && d.data_tratada && Number(d.saida) === 1) {
+      let dataEnt = new Date(d.data_entrada);
+      let dataTrat = new Date(d.data_tratada);
+      let diffTrat = Math.ceil((dataTrat - dataEnt) / (1000*60*60*24));
+      if(diffTrat >= 0) {
+        somaDiasTratativa += diffTrat;
+        qtdTicketsComTratativa++;
+      }
+    }
   });
+
+  let tmtMedio = qtdTicketsComTratativa > 0 ? (somaDiasTratativa / qtdTicketsComTratativa).toFixed(1) : 0;
+  document.getElementById("tmtValue").innerText = `TMT: ${tmtMedio}d`;
 
   const mapa = new Map();
   dadosCompletos.forEach(d => {
@@ -199,10 +224,8 @@ function render(dadosCompletos){
   let fora = 0;
   let dentro = 0;
   let critico = 0;
-
   let ticketsCriticos = [];
   ticketsFora = [];
-
   let respDentro = {};
   let respFora = {};
 
@@ -211,7 +234,6 @@ function render(dadosCompletos){
       fora++;
       ticketsFora.push(d);
     }
-
     if(d.sla_status?.includes("DENTRO")) dentro++;
 
     if (d.data_entrada) {
@@ -237,14 +259,12 @@ function render(dadosCompletos){
   document.getElementById("pendentes").innerText = pendentes;
   document.getElementById("fora").innerText = fora;
   document.getElementById("critico").innerText = critico;
-
-  document.getElementById("lista").innerText =
-    ticketsCriticos.length ? ticketsCriticos.join(", ") : "Nenhum crítico";
+  document.getElementById("lista").innerText = ticketsCriticos.length ? ticketsCriticos.join(", ") : "Nenhum crítico";
 
   if(chartSLA) chartSLA.destroy();
   chartSLA = new Chart(document.getElementById("sla"), {
     type:"doughnut",
-    data:{ labels:["Dentro","Fora"], datasets:[{data:[dentro,fora]}] }
+    data:{ labels:["Dentro","Fora"], datasets:[{data:[dentro,fora], backgroundColor:["#22c55e","#ef4444"]}] }
   });
 
   if(chartOp) chartOp.destroy();
@@ -252,71 +272,51 @@ function render(dadosCompletos){
     type:"bar",
     data:{
       labels:["Entrada","Saída","Pendentes"],
-      datasets:[{data:[total,finalizados,pendentes]}]
+      datasets:[{data:[total,finalizados,pendentes], backgroundColor:["#3b82f6","#22c55e","#eab308"]}]
     }
   });
 
   if(chartResp) chartResp.destroy();
-
   let todos = Object.keys({...respDentro, ...respFora});
-
   chartResp = new Chart(document.getElementById("respChart"), {
     type:"bar",
     data:{
       labels: todos,
       datasets:[
-        {
-          label:"Dentro do prazo",
-          data: todos.map(r => respDentro[r] || 0),
-          backgroundColor:"#22c55e"
-        },
-        {
-          label:"Fora do prazo",
-          data: todos.map(r => respFora[r] || 0),
-          backgroundColor:"#ef4444"
-        }
+        { label:"Dentro do prazo", data: todos.map(r => respDentro[r] || 0), backgroundColor:"#22c55e" },
+        { label:"Fora do prazo", data: todos.map(r => respFora[r] || 0), backgroundColor:"#ef4444" }
       ]
     }
   });
 
   chartResp.options.onClick = (evt, elements) => {
     if(!elements.length) return;
-
     const el = elements[0];
     const label = chartResp.data.labels[el.index];
     const dataset = el.datasetIndex;
-
     let lista = dadosUnicos.filter(d => d.responsavel === label);
-
-    if(dataset === 0){
-      lista = lista.filter(d => d.sla_status?.includes("DENTRO"));
-    }
-    if(dataset === 1){
-      lista = lista.filter(d => d.sla_status?.includes("FORA"));
-    }
+    if(dataset === 0) lista = lista.filter(d => d.sla_status?.includes("DENTRO"));
+    if(dataset === 1) lista = lista.filter(d => d.sla_status?.includes("FORA"));
     abrirModal(lista);
   };
-
-  bindClicks();
+  
+  // Ativa clique no card Fora SLA para abrir modal
+  document.getElementById("cardFora").onclick = () => abrirModal(ticketsFora);
 }
 
-function gerarPDF(){
-  window.print();
-}
+function gerarPDF(){ window.print(); }
 
+// Inicialização
 carregar();
-setInterval(carregar,30000);
+setInterval(carregar, 60000); // Auto-refresh inteligente a cada 1 minuto para não estressar a planilha
 
 function gerarPDFAuto(){
   document.querySelectorAll("button, input").forEach(e => e.style.display = "none");
   window.print();
   setTimeout(() => location.reload(), 2000);
 }
-
 if(window.location.search.includes("pdf=1")){
-  window.addEventListener("load", () => {
-    setTimeout(() => gerarPDFAuto(), 1500);
-  });
+  window.addEventListener("load", () => { setTimeout(() => gerarPDFAuto(), 1500); });
 }
 </script>
 </body>
