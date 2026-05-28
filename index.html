@@ -31,7 +31,8 @@
   <input type="date" id="dataInicio" class="p-2 border rounded">
   <input type="date" id="dataFim" class="p-2 border rounded">
 
-  <button onclick="aplicarFiltro()" class="bg-black text-white px-4 py-2 rounded">🔎 Filtrar</button>
+  <button onclick="filtrarHoje()" class="bg-black text-white px-4 py-2 rounded">🔎 Filtrar Hoje</button>
+  <button onclick="filtrarHistorico()" class="bg-blue-600 text-white px-4 py-2 rounded">⏳ Filtrar Histórico</button>
   <button onclick="resetFiltro()" class="bg-gray-500 text-white px-4 py-2 rounded">Reset</button>
   <button onclick="gerarPDF()" class="bg-black text-white px-4 py-2 rounded">📄 Baixar PDF</button>
 
@@ -154,32 +155,16 @@ function carregar(abaDestino = "principal"){
   .then(r => r.json())
   .then(data => {
     dadosCache = data;
-    
-    let ini = document.getElementById("dataInicio").value;
-    let fim = document.getElementById("dataFim").value;
-    let hoje = new Date().toISOString().split('T')[0];
-    
-    if (!ini && !fim) {
-      document.getElementById("dataInicio").value = hoje;
-      document.getElementById("dataFim").value = hoje;
-    }
-    
     aplicarFiltroLocal();
   });
 }
 
-function aplicarFiltro(){
-  let ini = document.getElementById("dataInicio").value;
-  let fim = document.getElementById("dataFim").value;
-  let hoje = new Date().toISOString().split('T')[0];
+function filtrarHoje(){
+  carregar("principal");
+}
 
-  // Se o usuário limpou os campos ou setou ambos para hoje, usa a aba principal. 
-  // Se escolheu datas retroativas ou um período amplo entre dias diferentes, puxa do histórico.
-  if ((ini && ini !== hoje) || (fim && fim !== hoje) || (ini !== fim)) {
-    carregar("historico");
-  } else {
-    carregar("principal");
-  }
+function filtrarHistorico(){
+  carregar("historico");
 }
 
 function aplicarFiltroLocal(){
@@ -197,8 +182,9 @@ function aplicarFiltroLocal(){
 }
 
 function resetFiltro(){
-  document.getElementById("dataInicio").value = "";
-  document.getElementById("dataFim").value = "";
+  let hoje = new Date().toISOString().split('T')[0];
+  document.getElementById("dataInicio").value = hoje;
+  document.getElementById("dataFim").value = hoje;
   carregar("principal");
 }
 
@@ -332,14 +318,21 @@ function gerarPDF(){
   window.print();
 }
 
-carregar("principal");
+// Inicialização padrão com a data de hoje configurada nos inputs
+window.addEventListener("load", () => {
+  let hoje = new Date().toISOString().split('T')[0];
+  document.getElementById("dataInicio").value = hoje;
+  document.getElementById("dataFim").value = hoje;
+  carregar("principal");
+});
 
+// Atualização automática em tempo real a cada 30 segundos apenas para a tela padrão de hoje
 setInterval(() => {
   let ini = document.getElementById("dataInicio").value;
   let fim = document.getElementById("dataFim").value;
   let hoje = new Date().toISOString().split('T')[0];
   
-  if((!ini || ini === hoje) && (!fim || fim === hoje)) {
+  if(ini === hoje && fim === hoje) {
      carregar("principal");
   }
 }, 30000);
