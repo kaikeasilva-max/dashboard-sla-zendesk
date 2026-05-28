@@ -146,7 +146,6 @@ function bindClicks(){
 function carregar(abaDestino = "principal"){
   let urlFinal = apiURL + "?t=" + new Date().getTime();
   
-  // Se for solicitado o histórico, adiciona o parâmetro correspondente para a API do Google Sheets
   if(abaDestino === "historico"){
     urlFinal += "&aba=historico";
   }
@@ -160,7 +159,6 @@ function carregar(abaDestino = "principal"){
     let fim = document.getElementById("dataFim").value;
     let hoje = new Date().toISOString().split('T')[0];
     
-    // Se não houver data definida nos campos, força a exibição para hoje por padrão
     if (!ini && !fim) {
       document.getElementById("dataInicio").value = hoje;
       document.getElementById("dataFim").value = hoje;
@@ -175,8 +173,9 @@ function aplicarFiltro(){
   let fim = document.getElementById("dataFim").value;
   let hoje = new Date().toISOString().split('T')[0];
 
-  // Se o filtro for diferente de hoje, força o recarregamento chamando os dados do histórico
-  if((ini && ini !== hoje) || (fim && fim !== hoje)){
+  // Se o usuário limpou os campos ou setou ambos para hoje, usa a aba principal. 
+  // Se escolheu datas retroativas ou um período amplo entre dias diferentes, puxa do histórico.
+  if ((ini && ini !== hoje) || (fim && fim !== hoje) || (ini !== fim)) {
     carregar("historico");
   } else {
     carregar("principal");
@@ -333,16 +332,13 @@ function gerarPDF(){
   window.print();
 }
 
-// Inicializa buscando o dia corrente da planilha principal
 carregar("principal");
 
-// Rotina de atualização em tempo real para o dia atual de 30 em 30 segundos
 setInterval(() => {
   let ini = document.getElementById("dataInicio").value;
   let fim = document.getElementById("dataFim").value;
   let hoje = new Date().toISOString().split('T')[0];
   
-  // Só executa o auto-refresh se estiver visualizando o dia de hoje
   if((!ini || ini === hoje) && (!fim || fim === hoje)) {
      carregar("principal");
   }
