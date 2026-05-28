@@ -92,7 +92,7 @@
 
 </div>
 
-<div id="modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify center z-50">
+<div id="modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
   <div class="bg-white w-3/4 max-h-[80vh] overflow-auto rounded-xl shadow-xl p-6">
 
     <div class="flex justify-between items-center mb-4">
@@ -114,11 +114,12 @@ let chartSLA, chartOp, chartResp;
 let ticketsFora = [];
 
 function abrirModal(lista){
+  // 🔥 CORREÇÃO: Agora puxa "t.status" primeiro (Coluna F / Status Verdadeiro) para não mostrar o texto estático
   let html = lista.map(t => `
     <div class="border p-3 rounded bg-slate-50 mb-2">
-      🎫 ${t.ticket_id}<br>
+      🎫 <b>${t.ticket_id}</b><br>
       👤 ${t.responsavel || "-"}<br>
-      🧾 ${t["status ticket"] || t.status || "-"}
+      🧾 Status: ${t.status || t["status ticket"] || "-"}
     </div>
   `).join("");
 
@@ -177,7 +178,6 @@ function resetFiltro(){
 
 function render(dadosCompletos){
   
-  // 1. ACUMULADO MATEMÁTICO (Soma tudo do período sem remover nada para os cartões I, J, K funcionarem)
   let total = 0;
   let finalizados = 0;
   let pendentes = 0;
@@ -188,7 +188,6 @@ function render(dadosCompletos){
     pendentes += Number(d.pendente || 0);
   });
 
-  // 2. FILTRO DE UNICIDADE (Apenas para listagem visual, críticos e gráficos de pizza não duplicarem)
   const mapa = new Map();
   dadosCompletos.forEach(d => {
     if(!mapa.has(d.ticket_id)){
@@ -233,7 +232,6 @@ function render(dadosCompletos){
     }
   });
 
-  // Alimenta os elementos da tela
   document.getElementById("total").innerText = total;
   document.getElementById("finalizados").innerText = finalizados;
   document.getElementById("pendentes").innerText = pendentes;
@@ -243,7 +241,6 @@ function render(dadosCompletos){
   document.getElementById("lista").innerText =
     ticketsCriticos.length ? ticketsCriticos.join(", ") : "Nenhum crítico";
 
-  // Renderização dos Gráficos
   if(chartSLA) chartSLA.destroy();
   chartSLA = new Chart(document.getElementById("sla"), {
     type:"doughnut",
