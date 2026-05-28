@@ -143,26 +143,47 @@ function bindClicks(){
   }
 }
 
-function carregar(){
-fetch(apiURL + "?t=" + new Date().getTime())
-.then(r => r.json())
-.then(data => {
-  dadosCache = data;
+function carregar(abaDestino = "principal"){
+  let urlFinal = apiURL + "?t=" + new Date().getTime();
   
-  // Define os inputs com a data de hoje ao carregar a página pela primeira vez se estiverem vazios
-  let hoje = new Date().toISOString().split('T')[0];
-  if (!document.getElementById("dataInicio").value && !document.getElementById("dataFim").value) {
-    document.getElementById("dataInicio").value = hoje;
-    document.getElementById("dataFim").value = hoje;
-    aplicarFiltro();
-  } else {
-    aplicarFiltro();
+  // Se for solicitado o histórico, adiciona o parâmetro correspondente para a API do Google Sheets
+  if(abaDestino === "historico"){
+    urlFinal += "&aba=historico";
   }
-});
+
+  fetch(urlFinal)
+  .then(r => r.json())
+  .then(data => {
+    dadosCache = data;
+    
+    let ini = document.getElementById("dataInicio").value;
+    let fim = document.getElementById("dataFim").value;
+    let hoje = new Date().toISOString().split('T')[0];
+    
+    // Se não houver data definida nos campos, força a exibição para hoje por padrão
+    if (!ini && !fim) {
+      document.getElementById("dataInicio").value = hoje;
+      document.getElementById("dataFim").value = hoje;
+    }
+    
+    aplicarFiltroLocal();
+  });
 }
 
 function aplicarFiltro(){
+  let ini = document.getElementById("dataInicio").value;
+  let fim = document.getElementById("dataFim").value;
+  let hoje = new Date().toISOString().split('T')[0];
 
+  // Se o filtro for diferente de hoje, força o recarregamento chamando os dados do histórico
+  if((ini && ini !== hoje) || (fim && fim !== hoje)){
+    carregar("historico");
+  } else {
+    carregar("principal");
+  }
+}
+
+function aplicarFiltroLocal(){
   let ini = document.getElementById("dataInicio").value;
   let fim = document.getElementById("dataFim").value;
 
@@ -179,7 +200,7 @@ function aplicarFiltro(){
 function resetFiltro(){
   document.getElementById("dataInicio").value = "";
   document.getElementById("dataFim").value = "";
-  render(dadosCache);
+  carregar("principal");
 }
 
 function render(dados){
@@ -312,8 +333,20 @@ function gerarPDF(){
   window.print();
 }
 
-carregar();
-setInterval(carregar,30000);
+// Inicializa buscando o dia corrente da planilha principal
+carregar("principal");
+
+// Rotina de atualização em tempo real para o dia atual de 30 em 30 segundos
+setInterval(() => {
+  let ini = document.getElementById("dataInicio").value;
+  let fim = document.getElementById("dataFim").value;
+  let hoje = new Date().toISOString().split('T')[0];
+  
+  // Só executa o auto-refresh se estiver visualizando o dia de hoje
+  if((!ini || ini === hoje) && (!fim || fim === hoje)) {
+     carregar("principal");
+  }
+}, 30000);
 
 function gerarPDFAuto(){
   document.querySelectorAll("button, input").forEach(e => e.style.display = "none");
