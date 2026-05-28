@@ -113,9 +113,34 @@ let dadosCache = [];
 let chartSLA, chartOp, chartResp;
 let ticketsFora = [];
 
-function normalizar(d){
-  if(!d) return "";
-  return String(d).split("T")[0].trim();
+// Transforma qualquer formato de data vindo da API em um número de data puro (Time) para comparação precisa matemática
+function obterObjetoData(valorData) {
+  if (!valorData) return null;
+  let str = String(valorData).trim();
+  if (str === "" || str === "undefined" || str === "null") return null;
+
+  // Se for formato DD/MM/AAAA
+  if (str.includes("/")) {
+    let partes = str.split("/");
+    if (partes.length === 3) {
+      return new Date(Number(partes[2]), Number(partes[1]) - 1, Number(partes[0]), 0, 0, 0, 0);
+    }
+  }
+
+  // Se for formato AAAA-MM-DD (ISO)
+  if (str.includes("-")) {
+    let partes = str.split("T")[0].split("-");
+    if (partes.length === 3) {
+      return new Date(Number(partes[0]), Number(partes[1]) - 1, Number(partes[2]), 0, 0, 0, 0);
+    }
+  }
+
+  let tentativa = new Date(valorData);
+  if (!isNaN(tentativa.getTime())) {
+    tentativa.setHours(0,0,0,0);
+    return tentativa;
+  }
+  return null;
 }
 
 function abrirModal(lista){
@@ -159,13 +184,19 @@ fetch(apiURL + "?t=" + new Date().getTime())
 }
 
 function aplicarFiltro(){
-  let ini = document.getElementById("dataInicio").value;
-  let fim = document.getElementById("dataFim").value;
+  let campoIni = document.getElementById("dataInicio").value;
+  let campoFim = document.getElementById("dataFim").value;
+
+  // Converte as datas dos inputs de busca para objetos de tempo limpos
+  let dataLimiteIni = campoIni ? new Date(campoIni + "T00:00:00") : null;
+  let dataLimiteFim = campoFim ? new Date(campoFim + "T00:00:00") : null;
 
   let base = dadosCache.filter(d => {
-    let data = normalizar(d.data_dia);
-    if(ini && data < ini) return false;
-    if(fim && data > fim) return false;
+    let dataItem = obterObjetoData(d.data_dia);
+    if (!dataItem) return false;
+
+    if (dataLimiteIni && dataItem.getTime() < dataLimiteIni.getTime()) return false;
+    if (dataLimiteFim && dataItem.getTime() > dataLimiteFim.getTime()) return false;
     return true;
   });
 
@@ -181,7 +212,7 @@ function resetFiltro(){
 
 function render(dados){
 
-  // 🔥 REMOVE DUPLICADOS (Ajustado para o escopo do período filtrado)
+  // 🔥 REMOVE DUPLICADOS DENTRO DO PERÍODO FILTRADO
   const mapa = new Map();
   dados.forEach(d => {
     if(!mapa.has(d.ticket_id)){
