@@ -92,7 +92,6 @@
 
 </div>
 
-<!-- MODAL -->
 <div id="modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
   <div class="bg-white w-3/4 max-h-[80vh] overflow-auto rounded-xl shadow-xl p-6">
 
@@ -149,7 +148,16 @@ fetch(apiURL + "?t=" + new Date().getTime())
 .then(r => r.json())
 .then(data => {
   dadosCache = data;
-  render(data);
+  
+  // Define os inputs com a data de hoje ao carregar a página pela primeira vez se estiverem vazios
+  let hoje = new Date().toISOString().split('T')[0];
+  if (!document.getElementById("dataInicio").value && !document.getElementById("dataFim").value) {
+    document.getElementById("dataInicio").value = hoje;
+    document.getElementById("dataFim").value = hoje;
+    aplicarFiltro();
+  } else {
+    aplicarFiltro();
+  }
 });
 }
 
@@ -284,7 +292,7 @@ function render(dados){
     const label = chartResp.data.labels[el.index];
     const dataset = el.datasetIndex;
 
-    let lista = dadosCache.filter(d => d.responsavel === label);
+    let lista = dados.filter(d => d.responsavel === label);
 
     if(dataset === 0){
       lista = lista.filter(d => d.sla_status?.includes("DENTRO"));
@@ -318,8 +326,6 @@ if(window.location.search.includes("pdf=1")){
     setTimeout(() => gerarPDFAuto(), 1500);
   });
 }
-
 </script>
-
 </body>
 </html>
