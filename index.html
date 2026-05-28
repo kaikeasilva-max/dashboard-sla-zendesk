@@ -92,7 +92,7 @@
 
 </div>
 
-<div id="modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+<div id="modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify center z-50">
   <div class="bg-white w-3/4 max-h-[80vh] overflow-auto rounded-xl shadow-xl p-6">
 
     <div class="flex justify-between items-center mb-4">
@@ -175,19 +175,28 @@ function resetFiltro(){
   aplicarFiltro();
 }
 
-function render(dados){
-  // 🔥 REMOVE DUPLICADOS POR ID DE TICKET
+function render(dadosCompletos){
+  
+  // 1. ACUMULADO MATEMÁTICO (Soma tudo do período sem remover nada para os cartões I, J, K funcionarem)
+  let total = 0;
+  let finalizados = 0;
+  let pendentes = 0;
+
+  dadosCompletos.forEach(d => {
+    total += Number(d.entrada || 0);
+    finalizados += Number(d.saida || 0);
+    pendentes += Number(d.pendente || 0);
+  });
+
+  // 2. FILTRO DE UNICIDADE (Apenas para listagem visual, críticos e gráficos de pizza não duplicarem)
   const mapa = new Map();
-  dados.forEach(d => {
+  dadosCompletos.forEach(d => {
     if(!mapa.has(d.ticket_id)){
       mapa.set(d.ticket_id, d);
     }
   });
-  dados = Array.from(mapa.values());
+  let dadosUnicos = Array.from(mapa.values());
 
-  let total = 0;
-  let finalizados = 0;
-  let pendentes = 0;
   let fora = 0;
   let dentro = 0;
   let critico = 0;
@@ -198,11 +207,7 @@ function render(dados){
   let respDentro = {};
   let respFora = {};
 
-  dados.forEach(d => {
-    total += Number(d.entrada || 0);
-    finalizados += Number(d.saida || 0);
-    pendentes += Number(d.pendente || 0);
-
+  dadosUnicos.forEach(d => {
     if(d.sla_status?.includes("FORA")){
       fora++;
       ticketsFora.push(d);
@@ -228,6 +233,7 @@ function render(dados){
     }
   });
 
+  // Alimenta os elementos da tela
   document.getElementById("total").innerText = total;
   document.getElementById("finalizados").innerText = finalizados;
   document.getElementById("pendentes").innerText = pendentes;
@@ -237,6 +243,7 @@ function render(dados){
   document.getElementById("lista").innerText =
     ticketsCriticos.length ? ticketsCriticos.join(", ") : "Nenhum crítico";
 
+  // Renderização dos Gráficos
   if(chartSLA) chartSLA.destroy();
   chartSLA = new Chart(document.getElementById("sla"), {
     type:"doughnut",
@@ -282,7 +289,7 @@ function render(dados){
     const label = chartResp.data.labels[el.index];
     const dataset = el.datasetIndex;
 
-    let lista = dados.filter(d => d.responsavel === label);
+    let lista = dadosUnicos.filter(d => d.responsavel === label);
 
     if(dataset === 0){
       lista = lista.filter(d => d.sla_status?.includes("DENTRO"));
