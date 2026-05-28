@@ -31,8 +31,7 @@
   <input type="date" id="dataInicio" class="p-2 border rounded">
   <input type="date" id="dataFim" class="p-2 border rounded">
 
-  <button onclick="filtrarHoje()" class="bg-black text-white px-4 py-2 rounded">🔎 Filtrar Hoje</button>
-  <button onclick="filtrarHistorico()" class="bg-blue-600 text-white px-4 py-2 rounded">⏳ Filtrar Histórico</button>
+  <button onclick="aplicarFiltro()" class="bg-black text-white px-4 py-2 rounded">🔎 Filtrar</button>
   <button onclick="resetFiltro()" class="bg-gray-500 text-white px-4 py-2 rounded">Reset</button>
   <button onclick="gerarPDF()" class="bg-black text-white px-4 py-2 rounded">📄 Baixar PDF</button>
 
@@ -112,15 +111,36 @@ const apiURL = "https://script.google.com/macros/s/AKfycbzKjRpXnOG1I3P8NA90mPYVI
 
 let dadosCache = [];
 let chartSLA, chartOp, chartResp;
-
 let ticketsFora = [];
 
-function normalizar(d){
-  return String(d).split("T")[0];
+// Função inteligente para normalizar os formatos de data da sua API (vazio, barra ou ISO)
+function tratarDataItem(d, dataHoje) {
+  let dataRaw = d.data_dia || d.data_entrada;
+  if (!dataRaw) return dataHoje;
+
+  let str = String(dataRaw).trim();
+  if (str === "" || str === "undefined" || str === "null") return dataHoje;
+
+  // Se a data vier no formato DD/MM/AAAA (Histórico antigo), converte para AAAA-MM-DD
+  if (str.includes("/")) {
+    let partes = str.split("/");
+    if (partes.length === 3) {
+      let dia = partes[0].padStart(2, '0');
+      let mes = partes[1].padStart(2, '0');
+      let ano = partes[2];
+      return `${ano}-${mes}-${dia}`;
+    }
+  }
+
+  // Se vier no formato ISO completo com T
+  if (str.includes("T")) {
+    return str.split("T")[0];
+  }
+
+  return str;
 }
 
 function abrirModal(lista){
-
   let html = lista.map(t => `
     <div class="border p-3 rounded bg-slate-50 mb-2">
       🎫 ${t.ticket_id}<br>
@@ -144,37 +164,31 @@ function bindClicks(){
   }
 }
 
-function carregar(abaDestino = "principal"){
-  let urlFinal = apiURL + "?t=" + new Date().getTime();
+function carregar(){
+fetch(apiURL + "?t=" + new Date().getTime())
+.then(r => r.json())
+.then(data => {
+  dadosCache = data;
   
-  if(abaDestino === "historico"){
-    urlFinal += "&aba=historico";
+  let hoje = new Date().toISOString().split('T')[0];
+  if (!document.getElementById("dataInicio").value && !document.getElementById("dataFim").value) {
+    document.getElementById("dataInicio").value = hoje;
+    document.getElementById("dataFim").value = hoje;
   }
-
-  fetch(urlFinal)
-  .then(r => r.json())
-  .then(data => {
-    dadosCache = data;
-    aplicarFiltroLocal();
-  });
+  
+  aplicarFiltro();
+});
 }
 
-function filtrarHoje(){
-  carregar("principal");
-}
-
-function filtrarHistorico(){
-  carregar("historico");
-}
-
-function aplicarFiltroLocal(){
+function aplicarFiltro(){
   let ini = document.getElementById("dataInicio").value;
   let fim = document.getElementById("dataFim").value;
+  let hoje = new Date().toISOString().split('T')[0];
 
   let base = dadosCache.filter(d => {
-    let data = normalizar(d.data_dia);
-    if(ini && data < ini) return false;
-    if(fim && data > fim) return false;
+    let dataItem = tratarDataItem(d, hoje);
+    if(ini && dataItem < ini) return false;
+    if(fim && dataItem > fim) return false;
     return true;
   });
 
@@ -185,12 +199,12 @@ function resetFiltro(){
   let hoje = new Date().toISOString().split('T')[0];
   document.getElementById("dataInicio").value = hoje;
   document.getElementById("dataFim").value = hoje;
-  carregar("principal");
+  aplicarFiltro();
 }
 
 function render(dados){
 
-  // 🔥 REMOVE DUPLICADOS (SEM MEXER NA API)
+  // 🔥 REMOVE DUPLICADOS (Garante id único por dia/período filtrado)
   const mapa = new Map();
   dados.forEach(d => {
     if(!mapa.has(d.ticket_id)){
@@ -213,7 +227,6 @@ function render(dados){
   let respFora = {};
 
   dados.forEach(d => {
-
     total += Number(d.entrada || 0);
     finalizados += Number(d.saida || 0);
     pendentes += Number(d.pendente || 0);
@@ -225,11 +238,13 @@ function render(dados){
 
     if(d.sla_status?.includes("DENTRO")) dentro++;
 
-    let diff = Math.floor((new Date() - new Date(d.data_entrada)) / (1000*60*60*24));
-
-    if(diff > 5){
-      critico++;
-      ticketsCriticos.push(d.ticket_id);
+    // Validação estrita para o cálculo de +5 dias baseado na data de entrada
+    if (d.data_entrada) {
+      let diff = Math.floor((new Date() - new Date(d.data_entrada)) / (1000*60*60*24));
+      if(diff > 5){
+        critico++;
+        ticketsCriticos.push(d.ticket_id);
+      }
     }
 
     if(d.responsavel){
@@ -240,7 +255,6 @@ function render(dados){
         respFora[d.responsavel] = (respFora[d.responsavel]||0)+1;
       }
     }
-
   });
 
   document.getElementById("total").innerText = total;
@@ -291,7 +305,6 @@ function render(dados){
   });
 
   chartResp.options.onClick = (evt, elements) => {
-
     if(!elements.length) return;
 
     const el = elements[0];
@@ -303,11 +316,9 @@ function render(dados){
     if(dataset === 0){
       lista = lista.filter(d => d.sla_status?.includes("DENTRO"));
     }
-
     if(dataset === 1){
       lista = lista.filter(d => d.sla_status?.includes("FORA"));
     }
-
     abrirModal(lista);
   };
 
@@ -318,24 +329,8 @@ function gerarPDF(){
   window.print();
 }
 
-// Inicialização padrão com a data de hoje configurada nos inputs
-window.addEventListener("load", () => {
-  let hoje = new Date().toISOString().split('T')[0];
-  document.getElementById("dataInicio").value = hoje;
-  document.getElementById("dataFim").value = hoje;
-  carregar("principal");
-});
-
-// Atualização automática em tempo real a cada 30 segundos apenas para a tela padrão de hoje
-setInterval(() => {
-  let ini = document.getElementById("dataInicio").value;
-  let fim = document.getElementById("dataFim").value;
-  let hoje = new Date().toISOString().split('T')[0];
-  
-  if(ini === hoje && fim === hoje) {
-     carregar("principal");
-  }
-}, 30000);
+carregar();
+setInterval(carregar,30000);
 
 function gerarPDFAuto(){
   document.querySelectorAll("button, input").forEach(e => e.style.display = "none");
