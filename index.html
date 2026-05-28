@@ -113,13 +113,11 @@ let dadosCache = [];
 let chartSLA, chartOp, chartResp;
 let ticketsFora = [];
 
-// Transforma qualquer formato de data vindo da API em um número de data puro (Time) para comparação precisa matemática
 function obterObjetoData(valorData) {
   if (!valorData) return null;
   let str = String(valorData).trim();
   if (str === "" || str === "undefined" || str === "null") return null;
 
-  // Se for formato DD/MM/AAAA
   if (str.includes("/")) {
     let partes = str.split("/");
     if (partes.length === 3) {
@@ -127,7 +125,6 @@ function obterObjetoData(valorData) {
     }
   }
 
-  // Se for formato AAAA-MM-DD (ISO)
   if (str.includes("-")) {
     let partes = str.split("T")[0].split("-");
     if (partes.length === 3) {
@@ -187,7 +184,6 @@ function aplicarFiltro(){
   let campoIni = document.getElementById("dataInicio").value;
   let campoFim = document.getElementById("dataFim").value;
 
-  // Converte as datas dos inputs de busca para objetos de tempo limpos
   let dataLimiteIni = campoIni ? new Date(campoIni + "T00:00:00") : null;
   let dataLimiteFim = campoFim ? new Date(campoFim + "T00:00:00") : null;
 
@@ -212,7 +208,7 @@ function resetFiltro(){
 
 function render(dados){
 
-  // 🔥 REMOVE DUPLICADOS DENTRO DO PERÍODO FILTRADO
+  // 🔥 REMOVE DUPLICADOS NO PERÍODO SELECT
   const mapa = new Map();
   dados.forEach(d => {
     if(!mapa.has(d.ticket_id)){
@@ -235,10 +231,21 @@ function render(dados){
   let respFora = {};
 
   dados.forEach(d => {
-    total += Number(d.entrada || 0);
-    finalizados += Number(d.saida || 0);
-    pendentes += Number(d.pendente || 0);
+    
+    // 🚀 NOVA LÓGICA SEGUINDO O SEU INSIGHT: 
+    // Em vez de somar a coluna, contamos a existência da linha (cada linha válida = 1 ticket de Entrada)
+    total++; 
 
+    // Se a coluna "saida" for 1, ou se o status for "FECHADO"/"SOLUCIONADO", contamos como finalizado
+    let statusTexto = String(d.status || d["status ticket"]).toUpperCase();
+    if (Number(d.saida) === 1 || statusTexto.includes("FECHADO") || statusTexto.includes("SOLUCIONADO") || statusTexto.includes("CONCLUÍDO")) {
+      finalizados++;
+    } else {
+      // Caso contrário, por eliminação lógica, ele está pendente
+      pendentes++;
+    }
+
+    // Mantendo a lógica de sucesso do Fora SLA
     if(d.sla_status?.includes("FORA")){
       fora++;
       ticketsFora.push(d);
@@ -246,6 +253,7 @@ function render(dados){
 
     if(d.sla_status?.includes("DENTRO")) dentro++;
 
+    // Mantendo a lógica de sucesso do +5 dias
     if (d.data_entrada) {
       let diff = Math.floor((new Date() - new Date(d.data_entrada)) / (1000*60*60*24));
       if(diff > 5){
