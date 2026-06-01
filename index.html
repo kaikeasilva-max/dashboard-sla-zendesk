@@ -1,3 +1,8 @@
+Para fazer com que os números (rótulos) fiquem **sempre visíveis e fixos** diretamente em cima ou dentro das barras e fatias dos gráficos (sem precisar passar o mouse), a melhor biblioteca do mercado é o plugin oficial do Chart.js chamado **`chartjs-plugin-datalabels`**.
+
+Aqui está o seu código exatamente igual, sem nenhuma alteração de regra ou design, apenas adicionando o script do plugin e configurando os gráficos para exibir os números fixos de forma corporativa e elegante.
+
+```html
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -6,6 +11,7 @@
 
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> 
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 
 <style>
 .card { transition: 0.2s ease-in-out; cursor:pointer; }
@@ -209,6 +215,9 @@
 </div>
 
 <script>
+// REGISTRA O PLUGIN PARA TODOS OS GRÁFICOS DO SITE CONSEGUIREM FAZER RENDERS DE NÚMEROS FIXOS
+Chart.register(ChartDataLabels);
+
 const apiURL = "https://script.google.com/macros/s/AKfycbzKjRpXnOG1I3P8NA90mPYVILS_317gx_EZUuio7fMrcMwJiIjwmWYjVOqD73Hkmw2CeQ/exec";
 
 let dadosCache = { zendesk: [], produtividade: [] };
@@ -239,7 +248,6 @@ function alternarAba(aba) {
     contSla.classList.add("hidden");
     contProd.classList.remove("hidden");
     vazao.classList.add("opacity-0");
-    // Forçar redesenho do gráfico de produtividade ao abrir a aba
     if(chartProd) { chartProd.resize(); }
   }
 }
@@ -280,13 +288,10 @@ function carregar(){
   fetch(urlComFiltro)
   .then(r => r.json())
   .then(data => {
-    // Tratativa caso o backend retorne o formato unificado de abas {zendesk: [...], produtividade: [...]}
-    // Se não retornar estruturado, as funções de renderização abaixo tratam os fallbacks.
     if(data.zendesk || data.produtividade){
         dadosCache.zendesk = data.zendesk || [];
         dadosCache.produtividade = data.produtividade || [];
     } else {
-        // Fallback caso sua API jogue tudo direto em um array único antigo
         dadosCache.zendesk = data;
         dadosCache.produtividade = []; 
     }
@@ -300,13 +305,11 @@ function carregar(){
 function filtrarPorTexto() {
   let termo = document.getElementById("buscaRapida").value.toUpperCase();
   
-  // Filtro Zendesk
   dadosFiltradosZendesk = dadosCache.zendesk.filter(d => {
     return String(d.ticket_id || '').toUpperCase().includes(termo) || 
            String(d.responsavel || '').toUpperCase().includes(termo);
   });
 
-  // Filtro Produtividade
   dadosFiltradosProdutividade = dadosCache.produtividade.filter(d => {
     return String(d.responsavel || d.RESPONSAVEL || '').toUpperCase().includes(termo);
   });
@@ -435,7 +438,18 @@ function renderZendesk(dadosCompletos){
   chartSLA = new Chart(document.getElementById("sla"), {
     type:"doughnut",
     data:{ labels:["Dentro do Prazo","Fora do Prazo"], datasets:[{data:[dentro,fora], backgroundColor:["#10b981","#f43f5e"], borderWidth:2}] },
-    options: { plugins: { legend: { position: 'bottom', labels: { font: { size: 11, weight: 'bold' }, boxWidth: 12 } } } }
+    options: { 
+      plugins: { 
+        legend: { position: 'bottom', labels: { font: { size: 11, weight: 'bold' }, boxWidth: 12 } },
+        // CONFIGURAÇÃO DOS NÚMEROS FIXOS NA ROSCA DO SLA
+        datalabels: {
+          display: true,
+          color: '#ffffff',
+          font: { weight: 'bold', size: 12 },
+          formatter: (value) => value > 0 ? value : ''
+        }
+      } 
+    }
   });
 
   if(chartOp) chartOp.destroy();
@@ -445,7 +459,21 @@ function renderZendesk(dadosCompletos){
       labels:["Entrada Bruta","Concluídos (Saída)","Pendentes em Fila"],
       datasets:[{data:[total,finalizados,pendentes], backgroundColor:["#475569","#10b981","#f59e0b"], borderRadius: 6, barThickness: 25}]
     },
-    options: { plugins: { legend: { display: false } }, scales: { y: { grid: { display: false } }, x: { grid: { display: false }, ticks: { font: { size: 10, weight: 'bold' } } } } }
+    options: { 
+      plugins: { 
+        legend: { display: false },
+        // CONFIGURAÇÃO DOS NÚMEROS FIXOS NAS BARRAS VERTICAIS
+        datalabels: {
+          display: true,
+          anchor: 'end',
+          align: 'top',
+          color: '#1e293b',
+          font: { weight: 'black', size: 11 },
+          formatter: (value) => value
+        }
+      }, 
+      scales: { y: { grid: { display: false } }, x: { grid: { display: false }, ticks: { font: { size: 10, weight: 'bold' } } } } 
+    }
   });
 
   if(chartResp) chartResp.destroy();
@@ -459,7 +487,19 @@ function renderZendesk(dadosCompletos){
         { label:"Fora do Prazo", data: todos.map(r => respFora[r] || 0), backgroundColor:"#f43f5e", borderRadius: 4 }
       ]
     },
-    options: { responsive: true, scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, grid: { borderDash: [4, 4] } } } }
+    options: { 
+      responsive: true, 
+      plugins: {
+        // CONFIGURAÇÃO DOS NÚMEROS FIXOS NAS BARRAS EMPILHADAS DOS ANALISTAS (DENTRO/FORA)
+        datalabels: {
+          display: true,
+          color: '#ffffff',
+          font: { weight: 'bold', size: 10 },
+          formatter: (value) => value > 0 ? value : ''
+        }
+      },
+      scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, grid: { borderDash: [4, 4] } } } 
+    }
   });
 
   chartResp.options.onClick = (evt, elements) => {
@@ -476,7 +516,6 @@ function renderZendesk(dadosCompletos){
   document.getElementById("cardFora").onclick = () => abrirModal(ticketsFora);
 }
 
-// ================= RENDERIZAÇÃO DA PRODUTIVIDADE GERAL =================
 function renderProdutividade(dadosProd){
   let tTabuladoInd = 0, tChamadoAprov = 0, tProcReslog = 0, tTratZendesk = 0, tTabProc = 0, tTabZen = 0, tGeral = 0;
   let responsaveis = [];
@@ -488,7 +527,6 @@ function renderProdutividade(dadosProd){
   let htmlTabela = "";
 
   dadosProd.forEach(p => {
-    // Normalizando chaves maiúsculas/minúsculas vindas da planilha
     let nome = p.responsavel || p.RESPONSAVEL || "-";
     let c1 = Number(p.tabulado_individual || p["Tabulado individual"] || 0);
     let c2 = Number(p.chamado_aprovado_aberto || p["Chamado aprovado/Aberto/Evidencias"] || 0);
@@ -498,11 +536,9 @@ function renderProdutividade(dadosProd){
     let c6 = Number(p.tabulado_zendesk || p["Tabulado/Zendesk (Individual)"] || 0);
     let totalLinha = Number(p.total || p.TOTAL || (c1+c2+c3+c4+c5+c6));
 
-    // Soma dos Cabeçalhos/Cards superiores
     tTabuladoInd += c1; tChamadoAprov += c2; tProcReslog += c3; tTratZendesk += c4; tTabProc += c5; tTabZen += c6;
     tGeral += totalLinha;
 
-    // Listas para o Gráfico
     responsaveis.push(nome);
     datasetsMatriz.tabInd.push(c1);
     datasetsMatriz.chamAprov.push(c2);
@@ -511,7 +547,6 @@ function renderProdutividade(dadosProd){
     datasetsMatriz.tabProc.push(c5);
     datasetsMatriz.tabZen.push(c6);
 
-    // Renderiza linha da tabela
     htmlTabela += `
       <tr class="hover:bg-slate-50 transition-colors">
         <td class="p-4 font-bold text-slate-900">${nome}</td>
@@ -526,16 +561,13 @@ function renderProdutividade(dadosProd){
     `;
   });
 
-  // Atualizando os Cards de Resumo da Produtividade
   document.getElementById("prodTotalGeral").innerText = tGeral;
   document.getElementById("prodTotalTabulado").innerText = (tTabuladoInd + tTabProc + tTabZen);
   document.getElementById("prodTotalProcessamento").innerText = tProcReslog;
   document.getElementById("prodTotalChamados").innerText = tChamadoAprov;
 
-  // Inserindo linhas na Tabela
   document.getElementById("corpoTabelaProdutividade").innerHTML = htmlTabela || `<tr><td colspan="8" class="text-center py-8 text-slate-400 font-medium">Nenhum dado de produtividade encontrado.</td></tr>`;
 
-  // Montagem do Gráfico de Barras Empilhadas de Produtividade
   if(chartProd) chartProd.destroy();
   chartProd = new Chart(document.getElementById("prodChart"), {
     type: "bar",
@@ -552,7 +584,16 @@ function renderProdutividade(dadosProd){
     },
     options: {
       responsive: true,
-      plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { weight: 'bold', size: 10 } } } },
+      plugins: { 
+        legend: { position: 'bottom', labels: { boxWidth: 12, font: { weight: 'bold', size: 10 } } },
+        // CONFIGURAÇÃO DOS NÚMEROS FIXOS EM TODAS AS CORES DAS BARRAS DE PRODUTIVIDADE GERAL
+        datalabels: {
+          display: true,
+          color: '#ffffff',
+          font: { weight: 'bold', size: 10 },
+          formatter: (value) => value > 0 ? value : '' // Não imprime se o valor for zero, limpando o gráfico
+        }
+      },
       scales: {
         x: { stacked: true, grid: { display: false } },
         y: { stacked: true, grid: { borderDash: [4, 4] } }
