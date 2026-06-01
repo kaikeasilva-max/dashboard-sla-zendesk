@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>📊 PAINEL DE GESTÃO DE SLA / ZENDESK</title>
+<title>📊 PAINEL DE GESTÃO E PRODUTIVIDADE</title>
 
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> 
@@ -18,9 +18,10 @@
 }
 
 @media print {
-  button, input, .no-print { display:none !important; }
+  button, input, .no-print, .tab-nav { display:none !important; }
   body { background-color: white; font-size: 12px; }
   .max-w-7xl { max-w: 100% !important; padding: 0 !important; }
+  .tab-content { display: block !important; } /* Imprime ambos se necessário */
 }
 </style>
 </head>
@@ -33,15 +34,24 @@
     <div>
       <div class="flex items-center gap-2">
         <span class="text-2xl">📊</span>
-        <h1 class="text-2xl font-black tracking-tight uppercase">Painel de Gestão de SLA / Zendesk</h1>
+        <h1 class="text-2xl font-black tracking-tight uppercase">Painel de Gestão Operacional</h1>
       </div>
-      <p class="text-slate-400 text-xs font-medium mt-1">Visão operacional</p>
+      <p class="text-slate-400 text-xs font-medium mt-1">Indicadores de SLA & Produtividade Multidemandas</p>
     </div>
     
-    <div class="bg-white/10 px-4 py-2.5 rounded-xl border border-white/10 min-w-[150px]">
-      <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Vazão da Operação</p>
+    <div id="vazaoContainer" class="bg-white/10 px-4 py-2.5 rounded-xl border border-white/10 min-w-[150px]">
+      <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Vazão da Operação (Zendesk)</p>
       <h3 id="conversaoMédia" class="text-xl font-black text-green-400 mt-0.5">0%</h3>
     </div>
+  </div>
+
+  <div class="flex border-b border-slate-200 no-print tab-nav gap-2">
+    <button onclick="alternarAba('sla')" id="btn-tab-sla" class="px-5 py-3 font-bold text-sm rounded-t-xl bg-slate-900 text-white border-b-2 border-slate-900 transition-all">
+      🎫 Gestão de SLA (Zendesk)
+    </button>
+    <button onclick="alternarAba('produtividade')" id="btn-tab-produtividade" class="px-5 py-3 font-bold text-sm rounded-t-xl bg-white text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-all">
+      ⚡ Produtividade Geral
+    </button>
   </div>
 
   <div class="flex flex-wrap gap-4 items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-100 no-print justify-between">
@@ -57,77 +67,131 @@
     </div>
 
     <div class="flex flex-wrap gap-2 w-full md:w-auto items-end pt-4 md:pt-0">
-      <input type="text" id="buscaRapida" oninput="filtrarPorTexto()" placeholder="🔎 Buscar ticket ou agente..." class="p-2 border border-slate-200 rounded-xl text-xs font-bold w-full md:w-56 bg-slate-50">
+      <input type="text" id="buscaRapida" oninput="filtrarPorTexto()" placeholder="🔎 Buscar ticket, analista ou processo..." class="p-2 border border-slate-200 rounded-xl text-xs font-bold w-full md:w-64 bg-slate-50">
       <button onclick="carregar()" class="bg-slate-900 hover:bg-black text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm transition-all">Filtrar</button>
       <button onclick="resetFiltro()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-xl text-xs font-bold transition-all">Reset</button>
       <button onclick="gerarPDF()" class="bg-white hover:bg-slate-50 text-slate-900 border border-slate-200 px-4 py-2 rounded-xl text-xs font-bold shadow-sm transition-all">📄 Imprimir PDF</button>
     </div>
   </div>
 
-  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
-    <div class="card bg-white p-5 rounded-2xl shadow-sm border border-slate-100" onclick="filtrarCards('TODOS')">
-      <p class="text-slate-400 text-[10px] font-bold uppercase tracking-wider">📦 Volume Entrada</p>
-      <h2 id="total" class="text-2xl font-black text-slate-900 mt-2">0</h2>
+  <div id="conteudo-sla" class="tab-content space-y-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
+      <div class="card bg-white p-5 rounded-2xl shadow-sm border border-slate-100" onclick="filtrarCards('TODOS')">
+        <p class="text-slate-400 text-[10px] font-bold uppercase tracking-wider">📦 Volume Entrada</p>
+        <h2 id="total" class="text-2xl font-black text-slate-900 mt-2">0</h2>
+      </div>
+
+      <div class="card bg-white p-5 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-emerald-500" onclick="filtrarCards('SAIDA')">
+        <p class="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">🟢 Concluídos (Saída)</p>
+        <h2 id="finalizados" class="text-2xl font-black text-slate-900 mt-2">0</h2>
+      </div>
+
+      <div class="card bg-white p-5 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-amber-500" onclick="filtrarCards('PENDENTE')">
+        <p class="text-amber-600 text-[10px] font-bold uppercase tracking-wider">🟡 Pendentes Atuais</p>
+        <h2 id="pendentes" class="text-2xl font-black text-slate-900 mt-2">0</h2>
+      </div>
+
+      <div class="card bg-white p-5 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-rose-500" id="cardFora" onclick="filtrarCards('FORA')">
+        <p class="text-rose-600 text-[10px] font-bold uppercase tracking-wider">🔴 Estourados (Fora SLA)</p>
+        <h2 id="fora" class="text-2xl font-black text-slate-900 mt-2">0</h2>
+      </div>
+
+      <div class="card bg-white p-5 rounded-2xl shadow-sm border border-slate-100 bg-gradient-to-br from-white to-rose-50/30" id="cardCritico" onclick="filtrarCards('CRITICO')">
+        <p class="text-rose-800 text-[10px] font-bold uppercase tracking-wider flex justify-between items-center">
+          <span>⚠ Alertas (+5d)</span>
+          <span class="bg-slate-900 text-white text-[9px] px-1.5 py-0.5 rounded font-black shadow-sm" id="tmtValue">TMT: 0d</span>
+        </p>
+        <h2 id="critico" class="text-2xl font-black text-rose-800 mt-2">0</h2>
+      </div>
     </div>
 
-    <div class="card bg-white p-5 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-emerald-500" onclick="filtrarCards('SAIDA')">
-      <p class="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">🟢 Concluídos (Saída)</p>
-      <h2 id="finalizados" class="text-2xl font-black text-slate-900 mt-2">0</h2>
-    </div>
-
-    <div class="card bg-white p-5 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-amber-500" onclick="filtrarCards('PENDENTE')">
-      <p class="text-amber-600 text-[10px] font-bold uppercase tracking-wider">🟡 Pendentes Atuais</p>
-      <h2 id="pendentes" class="text-2xl font-black text-slate-900 mt-2">0</h2>
-    </div>
-
-    <div class="card bg-white p-5 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-rose-500" id="cardFora" onclick="filtrarCards('FORA')">
-      <p class="text-rose-600 text-[10px] font-bold uppercase tracking-wider">🔴 Estourados (Fora SLA)</p>
-      <h2 id="fora" class="text-2xl font-black text-slate-900 mt-2">0</h2>
-    </div>
-
-    <div class="card bg-white p-5 rounded-2xl shadow-sm border border-slate-100 bg-gradient-to-br from-white to-rose-50/30" id="cardCritico" onclick="filtrarCards('CRITICO')">
-      <p class="text-rose-800 text-[10px] font-bold uppercase tracking-wider flex justify-between items-center">
-        <span>⚠ Alertas (+5d)</span>
-        <span class="bg-slate-900 text-white text-[9px] px-1.5 py-0.5 rounded font-black shadow-sm" id="tmtValue">TMT: 0d</span>
-      </p>
-      <h2 id="critico" class="text-2xl font-black text-rose-800 mt-2">0</h2>
-    </div>
-  </div>
-
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
-      <div>
-        <div class="flex justify-between items-center mb-2">
-          <h3 class="font-black text-slate-900 tracking-tight text-sm uppercase text-slate-500">Índice Geral de SLA</h3>
-          <span class="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold" id="metaStatus">Meta: 90%</span>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
+        <div>
+          <div class="flex justify-between items-center mb-2">
+            <h3 class="font-black text-slate-900 tracking-tight text-sm uppercase text-slate-500">Índice Geral de SLA</h3>
+            <span class="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold" id="metaStatus">Meta: 90%</span>
+          </div>
+          <div class="relative max-h-52 flex justify-center mt-4">
+            <canvas id="sla"></canvas>
+          </div>
         </div>
-        <div class="relative max-h-52 flex justify-center mt-4">
-          <canvas id="sla"></canvas>
+      </div>
+
+      <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 md:col-span-2">
+        <h3 class="font-black text-slate-900 tracking-tight text-sm uppercase text-slate-500 mb-4">Fluxo Operacional de Atendimento</h3>
+        <div class="relative max-h-56">
+          <canvas id="operacao"></canvas>
         </div>
       </div>
     </div>
 
-    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 md:col-span-2">
-      <h3 class="font-black text-slate-900 tracking-tight text-sm uppercase text-slate-500 mb-4">Fluxo Operacional de Atendimento</h3>
-      <div class="relative max-h-56">
-        <canvas id="operacao"></canvas>
+    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+      <h3 class="font-black text-slate-900 tracking-tight text-sm uppercase text-slate-500 mb-4">Volume e Cumprimento de SLA por Analista</h3>
+      <div class="w-full">
+        <canvas id="respChart"></canvas>
       </div>
     </div>
-  </div>
 
-  <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-    <h3 class="font-black text-slate-900 tracking-tight text-sm uppercase text-slate-500 mb-4">Volume e Cumprimento de SLA por Analista</h3>
-    <div class="w-full">
-      <canvas id="respChart"></canvas>
+    <div class="bg-rose-50 border border-rose-100 p-4 rounded-xl flex flex-col md:flex-row gap-2 md:items-center">
+      <div class="flex items-center gap-1.5 min-w-[180px]">
+        <span class="text-base">🚨</span>
+        <h3 class="font-black text-rose-800 tracking-tight text-xs uppercase">Backlog Alerta Crítico (+5d):</h3>
+      </div>
+      <p id="lista" class="text-rose-900 font-mono text-xs bg-white/70 px-2.5 py-1 rounded-lg border border-rose-100 flex-1 break-all"></p>
     </div>
   </div>
 
-  <div class="bg-rose-50 border border-rose-100 p-4 rounded-xl flex flex-col md:flex-row gap-2 md:items-center">
-    <div class="flex items-center gap-1.5 min-w-[180px]">
-      <span class="text-base">🚨</span>
-      <h3 class="font-black text-rose-800 tracking-tight text-xs uppercase">Backlog Alerta Crítico (+5d):</h3>
+  <div id="conteudo-produtividade" class="tab-content space-y-6 hidden">
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+        <p class="text-slate-400 text-[10px] font-bold uppercase tracking-wider">🔥 Total Entregas Realizadas</p>
+        <h2 id="prodTotalGeral" class="text-2xl font-black text-slate-900 mt-2">0</h2>
+      </div>
+      <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-indigo-500">
+        <p class="text-indigo-600 text-[10px] font-bold uppercase tracking-wider">📝 Tabulados Totais</p>
+        <h2 id="prodTotalTabulado" class="text-2xl font-black text-slate-900 mt-2">0</h2>
+      </div>
+      <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-sky-500">
+        <p class="text-sky-600 text-[10px] font-bold uppercase tracking-wider">⚙️ Processamentos/Reslog</p>
+        <h2 id="prodTotalProcessamento" class="text-2xl font-black text-slate-900 mt-2">0</h2>
+      </div>
+      <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-emerald-500">
+        <p class="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">🎫 Chamados Aprovados/Abertos</p>
+        <h2 id="prodTotalChamados" class="text-2xl font-black text-slate-900 mt-2">0</h2>
+      </div>
     </div>
-    <p id="lista" class="text-rose-900 font-mono text-xs bg-white/70 px-2.5 py-1 rounded-lg border border-rose-100 flex-1 break-all"></p>
+
+    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+      <h3 class="font-black text-slate-900 tracking-tight text-sm uppercase text-slate-500 mb-4">Volume de Atividades por Analista</h3>
+      <div class="w-full">
+        <canvas id="prodChart"></canvas>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+      <div class="p-5 border-b border-slate-100">
+        <h3 class="font-black text-slate-900 tracking-tight text-sm uppercase text-slate-500">Detalhamento das Demandas por Responsável</h3>
+      </div>
+      <div class="overflow-x-auto w-full">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="bg-slate-900 text-white font-bold uppercase tracking-wider text-[10px]">
+              <th class="p-4">Responsável</th>
+              <th class="p-4 text-center">Tabulado Individual</th>
+              <th class="p-4 text-center">Chamado Aprovado/Aberto</th>
+              <th class="p-4 text-center">Processamento/Reslog</th>
+              <th class="p-4 text-center">Tratado via Zendesk</th>
+              <th class="p-4 text-center">Tabulado Processamento</th>
+              <th class="p-4 text-center">Tabulado/Zendesk</th>
+              <th class="p-4 text-center font-black bg-slate-800">Total Geral</th>
+            </tr>
+          </thead>
+          <tbody id="corpoTabelaProdutividade" class="divide-y divide-slate-100 font-medium text-slate-700">
+            </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
 </div>
@@ -147,10 +211,38 @@
 <script>
 const apiURL = "https://script.google.com/macros/s/AKfycbzKjRpXnOG1I3P8NA90mPYVILS_317gx_EZUuio7fMrcMwJiIjwmWYjVOqD73Hkmw2CeQ/exec";
 
-let dadosCache = [];
-let dadosFiltradosAtuais = [];
-let chartSLA, chartOp, chartResp;
+let dadosCache = { zendesk: [], produtividade: [] };
+let dadosFiltradosZendesk = [];
+let dadosFiltradosProdutividade = [];
+
+let chartSLA, chartOp, chartResp, chartProd;
 let ticketsFora = [];
+let abaAtiva = 'sla';
+
+function alternarAba(aba) {
+  abaAtiva = aba;
+  const tabSla = document.getElementById("btn-tab-sla");
+  const tabProd = document.getElementById("btn-tab-produtividade");
+  const contSla = document.getElementById("conteudo-sla");
+  const contProd = document.getElementById("conteudo-produtividade");
+  const vazao = document.getElementById("vazaoContainer");
+
+  if (aba === 'sla') {
+    tabSla.className = "px-5 py-3 font-bold text-sm rounded-t-xl bg-slate-900 text-white border-b-2 border-slate-900 transition-all";
+    tabProd.className = "px-5 py-3 font-bold text-sm rounded-t-xl bg-white text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-all";
+    contSla.classList.remove("hidden");
+    contProd.classList.add("hidden");
+    vazao.classList.remove("opacity-0");
+  } else {
+    tabProd.className = "px-5 py-3 font-bold text-sm rounded-t-xl bg-slate-900 text-white border-b-2 border-slate-900 transition-all";
+    tabSla.className = "px-5 py-3 font-bold text-sm rounded-t-xl bg-white text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-all";
+    contSla.classList.add("hidden");
+    contProd.classList.remove("hidden");
+    vazao.classList.add("opacity-0");
+    // Forçar redesenho do gráfico de produtividade ao abrir a aba
+    if(chartProd) { chartProd.resize(); }
+  }
+}
 
 function abrirModal(lista){
   let html = lista.map(t => `
@@ -188,36 +280,55 @@ function carregar(){
   fetch(urlComFiltro)
   .then(r => r.json())
   .then(data => {
-    dadosCache = data;
-    dadosFiltradosAtuais = data;
-    render(data);
+    // Tratativa caso o backend retorne o formato unificado de abas {zendesk: [...], produtividade: [...]}
+    // Se não retornar estruturado, as funções de renderização abaixo tratam os fallbacks.
+    if(data.zendesk || data.produtividade){
+        dadosCache.zendesk = data.zendesk || [];
+        dadosCache.produtividade = data.produtividade || [];
+    } else {
+        // Fallback caso sua API jogue tudo direto em um array único antigo
+        dadosCache.zendesk = data;
+        dadosCache.produtividade = []; 
+    }
+    
+    filtrarPorTexto();
+  }).catch(err => {
+    console.error("Erro ao carregar dados da API:", err);
   });
 }
 
 function filtrarPorTexto() {
   let termo = document.getElementById("buscaRapida").value.toUpperCase();
-  let resultado = dadosCache.filter(d => {
-    return String(d.ticket_id).toUpperCase().includes(termo) || 
-           String(d.responsavel).toUpperCase().includes(termo);
+  
+  // Filtro Zendesk
+  dadosFiltradosZendesk = dadosCache.zendesk.filter(d => {
+    return String(d.ticket_id || '').toUpperCase().includes(termo) || 
+           String(d.responsavel || '').toUpperCase().includes(termo);
   });
-  dadosFiltradosAtuais = resultado;
-  render(resultado);
+
+  // Filtro Produtividade
+  dadosFiltradosProdutividade = dadosCache.produtividade.filter(d => {
+    return String(d.responsavel || d.RESPONSAVEL || '').toUpperCase().includes(termo);
+  });
+  
+  renderZendesk(dadosFiltradosZendesk);
+  renderProdutividade(dadosFiltradosProdutividade);
 }
 
 function filtrarCards(tipo) {
-  let resultado = dadosCache;
-  if (tipo === 'SAIDA') resultado = dadosCache.filter(d => Number(d.saida) === 1);
-  if (tipo === 'PENDENTE') resultado = dadosCache.filter(d => Number(d.pendente) === 1);
-  if (tipo === 'FORA') resultado = dadosCache.filter(d => d.sla_status?.includes("FORA"));
+  let resultado = dadosCache.zendesk;
+  if (tipo === 'SAIDA') resultado = dadosCache.zendesk.filter(d => Number(d.saida) === 1);
+  if (tipo === 'PENDENTE') resultado = dadosCache.zendesk.filter(d => Number(d.pendente) === 1);
+  if (tipo === 'FORA') resultado = dadosCache.zendesk.filter(d => d.sla_status?.includes("FORA"));
   if (tipo === 'CRITICO') {
-    resultado = dadosCache.filter(d => {
+    resultado = dadosCache.zendesk.filter(d => {
       if(!d.data_entrada) return false;
       let diff = Math.floor((new Date() - new Date(d.data_entrada)) / (1000*60*60*24));
       return diff > 5;
     });
   }
-  dadosFiltradosAtuais = resultado;
-  render(resultado);
+  dadosFiltradosZendesk = resultado;
+  renderZendesk(resultado);
 }
 
 function resetFiltro(){
@@ -228,7 +339,7 @@ function resetFiltro(){
   carregar();
 }
 
-function render(dadosCompletos){
+function renderZendesk(dadosCompletos){
   let total = 0;
   let finalizados = 0;
   let pendentes = 0;
@@ -251,7 +362,6 @@ function render(dadosCompletos){
     }
   });
 
-  // TAXA DE CONVERSÃO/EFICIÊNCIA
   let conversao = total > 0 ? ((finalizados / total) * 100).toFixed(0) : 0;
   document.getElementById("conversaoMédia").innerText = `${conversao}%`;
 
@@ -260,7 +370,7 @@ function render(dadosCompletos){
 
   const mapa = new Map();
   dadosCompletos.forEach(d => {
-    if(!mapa.has(d.ticket_id)){ mapa.set(d.ticket_id, d); }
+    if(d.ticket_id && !mapa.has(d.ticket_id)){ mapa.set(d.ticket_id, d); }
   });
   let dadosUnicos = Array.from(mapa.values());
 
@@ -304,7 +414,6 @@ function render(dadosCompletos){
   document.getElementById("critico").innerText = critico;
   document.getElementById("lista").innerText = ticketsCriticos.length ? ticketsCriticos.join(", ") : "Nenhum ticket crítico em fila.";
 
-  // Alerta de backlog excessivo
   const cardCrit = document.getElementById("cardCritico");
   if (critico > 5) {
     cardCrit.classList.add("pulse-critical", "bg-rose-50", "border-rose-200");
@@ -312,7 +421,6 @@ function render(dadosCompletos){
     cardCrit.classList.remove("pulse-critical", "bg-rose-50", "border-rose-200");
   }
 
-  // CONTROLE DE STATUS DA META
   let percentualSla = (dentro + fora) > 0 ? ((dentro / (dentro + fora)) * 100).toFixed(0) : 100;
   const metaBadge = document.getElementById("metaStatus");
   if(percentualSla >= 90) {
@@ -366,6 +474,91 @@ function render(dadosCompletos){
   };
   
   document.getElementById("cardFora").onclick = () => abrirModal(ticketsFora);
+}
+
+// ================= RENDERIZAÇÃO DA PRODUTIVIDADE GERAL =================
+function renderProdutividade(dadosProd){
+  let tTabuladoInd = 0, tChamadoAprov = 0, tProcReslog = 0, tTratZendesk = 0, tTabProc = 0, tTabZen = 0, tGeral = 0;
+  let responsaveis = [];
+  
+  let datasetsMatriz = {
+    tabInd: [], chamAprov: [], procRes: [], tratZen: [], tabProc: [], tabZen: []
+  };
+
+  let htmlTabela = "";
+
+  dadosProd.forEach(p => {
+    // Normalizando chaves maiúsculas/minúsculas vindas da planilha
+    let nome = p.responsavel || p.RESPONSAVEL || "-";
+    let c1 = Number(p.tabulado_individual || p["Tabulado individual"] || 0);
+    let c2 = Number(p.chamado_aprovado_aberto || p["Chamado aprovado/Aberto/Evidencias"] || 0);
+    let c3 = Number(p.processamento_reslog || p["Processamento/Reslog/Movimentação"] || 0);
+    let c4 = Number(p.tratado_via_zendesk || p["Tratado via zendesk"] || 0);
+    let c5 = Number(p.tabulado_processamento || p["Tabulado Processamento"] || 0);
+    let c6 = Number(p.tabulado_zendesk || p["Tabulado/Zendesk (Individual)"] || 0);
+    let totalLinha = Number(p.total || p.TOTAL || (c1+c2+c3+c4+c5+c6));
+
+    // Soma dos Cabeçalhos/Cards superiores
+    tTabuladoInd += c1; tChamadoAprov += c2; tProcReslog += c3; tTratZendesk += c4; tTabProc += c5; tTabZen += c6;
+    tGeral += totalLinha;
+
+    // Listas para o Gráfico
+    responsaveis.push(nome);
+    datasetsMatriz.tabInd.push(c1);
+    datasetsMatriz.chamAprov.push(c2);
+    datasetsMatriz.procRes.push(c3);
+    datasetsMatriz.tratZen.push(c4);
+    datasetsMatriz.tabProc.push(c5);
+    datasetsMatriz.tabZen.push(c6);
+
+    // Renderiza linha da tabela
+    htmlTabela += `
+      <tr class="hover:bg-slate-50 transition-colors">
+        <td class="p-4 font-bold text-slate-900">${nome}</td>
+        <td class="p-4 text-center font-semibold">${c1}</td>
+        <td class="p-4 text-center font-semibold">${c2}</td>
+        <td class="p-4 text-center font-semibold">${c3}</td>
+        <td class="p-4 text-center font-semibold">${c4}</td>
+        <td class="p-4 text-center font-semibold">${c5}</td>
+        <td class="p-4 text-center font-semibold">${c6}</td>
+        <td class="p-4 text-center font-black bg-slate-100/70 text-slate-900">${totalLinha}</td>
+      </tr>
+    `;
+  });
+
+  // Atualizando os Cards de Resumo da Produtividade
+  document.getElementById("prodTotalGeral").innerText = tGeral;
+  document.getElementById("prodTotalTabulado").innerText = (tTabuladoInd + tTabProc + tTabZen);
+  document.getElementById("prodTotalProcessamento").innerText = tProcReslog;
+  document.getElementById("prodTotalChamados").innerText = tChamadoAprov;
+
+  // Inserindo linhas na Tabela
+  document.getElementById("corpoTabelaProdutividade").innerHTML = htmlTabela || `<tr><td colspan="8" class="text-center py-8 text-slate-400 font-medium">Nenhum dado de produtividade encontrado.</td></tr>`;
+
+  // Montagem do Gráfico de Barras Empilhadas de Produtividade
+  if(chartProd) chartProd.destroy();
+  chartProd = new Chart(document.getElementById("prodChart"), {
+    type: "bar",
+    data: {
+      labels: responsaveis,
+      datasets: [
+        { label: "Tabulado Individual", data: datasetsMatriz.tabInd, backgroundColor: "#6366f1" },
+        { label: "Chamado Aprovado/Aberto", data: datasetsMatriz.chamAprov, backgroundColor: "#0ea5e9" },
+        { label: "Processamento/Reslog", data: datasetsMatriz.procRes, backgroundColor: "#f59e0b" },
+        { label: "Tratado via Zendesk", data: datasetsMatriz.tratZen, backgroundColor: "#10b981" },
+        { label: "Tabulado Processamento", data: datasetsMatriz.tabProc, backgroundColor: "#ec4899" },
+        { label: "Tabulado/Zendesk", data: datasetsMatriz.tabZen, backgroundColor: "#8b5cf6" }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { weight: 'bold', size: 10 } } } },
+      scales: {
+        x: { stacked: true, grid: { display: false } },
+        y: { stacked: true, grid: { borderDash: [4, 4] } }
+      }
+    }
+  });
 }
 
 function gerarPDF(){ window.print(); }
