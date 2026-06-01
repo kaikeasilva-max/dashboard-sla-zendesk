@@ -163,33 +163,41 @@
       </div>
     </div>
 
-    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-      <h3 class="font-black text-slate-900 tracking-tight text-sm uppercase text-slate-500 mb-4">Volume de Atividades por Analista</h3>
-      <div class="w-full">
-        <canvas id="prodChart"></canvas>
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+      <h3 class="font-black text-slate-900 tracking-tight text-sm uppercase text-slate-400 mb-4 flex items-center gap-2">
+        <span>📊</span> Volume de Atividades por Analista
+      </h3>
+      <div class="w-full relative px-2">
+        <canvas id="prodChart" height="110"></canvas>
       </div>
     </div>
 
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-      <div class="p-5 border-b border-slate-100">
-        <h3 class="font-black text-slate-900 tracking-tight text-sm uppercase text-slate-500">Detalhamento das Demandas por Responsável</h3>
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+      <div class="p-5 border-b border-slate-100 bg-slate-50/50">
+        <h3 class="font-black text-slate-900 tracking-tight text-sm uppercase text-slate-500 flex items-center gap-2">
+          <span>📋</span> Detalhamento das Demandas por Responsável
+        </h3>
       </div>
       <div class="overflow-x-auto w-full">
         <table class="w-full text-left border-collapse text-xs">
           <thead>
-            <tr class="bg-slate-900 text-white font-bold uppercase tracking-wider text-[10px]">
-              <th class="p-4">Responsável</th>
-              <th class="p-4 text-center">Tabulado Individual</th>
-              <th class="p-4 text-center">Chamado Aprovado/Aberto</th>
-              <th class="p-4 text-center">Processamento/Reslog</th>
-              <th class="p-4 text-center">Tratado via Zendesk</th>
-              <th class="p-4 text-center">Tabulado Processamento</th>
-              <th class="p-4 text-center">Tabulado/Zendesk</th>
-              <th class="p-4 text-center font-black bg-slate-800">Total Geral</th>
+            <tr class="bg-slate-900 text-white font-bold uppercase tracking-wider text-[10px] select-none">
+              <th class="p-4 border-b border-slate-800">Responsável</th>
+              <th class="p-4 text-center border-b border-slate-800">Tabulado Individual</th>
+              <th class="p-4 text-center border-b border-slate-800">Chamado Aprovado/Aberto</th>
+              <th class="p-4 text-center border-b border-slate-800">Processamento/Reslog</th>
+              <th class="p-4 text-center border-b border-slate-800">Tratado via Zendesk</th>
+              <th class="p-4 text-center border-b border-slate-800">Tabulado Processamento</th>
+              <th class="p-4 text-center border-b border-slate-800">Tabulado/Zendesk</th>
+              <th class="p-4 text-center font-black bg-slate-800 border-b border-slate-800">Total Geral</th>
             </tr>
           </thead>
-          <tbody id="corpoTabelaProdutividade" class="divide-y divide-slate-100 font-medium text-slate-700">
+          <tbody id="corpoTabelaProdutividade" class="divide-y divide-slate-200/60 font-semibold text-slate-700 odd:bg-slate-50/30">
             </tbody>
+          <tfoot class="bg-slate-100 border-t-2 border-slate-300 text-slate-900 font-black text-center">
+            <tr id="rodapeTabelaProdutividade">
+              </tr>
+          </tfoot>
         </table>
       </div>
     </div>
@@ -210,7 +218,6 @@
 </div>
 
 <script>
-// REGISTRA O PLUGIN PARA TODOS OS GRÁFICOS DO SITE CONSEGUIREM FAZER RENDERS DE NÚMEROS FIXOS
 Chart.register(ChartDataLabels);
 
 const apiURL = "https://script.google.com/macros/s/AKfycbzKjRpXnOG1I3P8NA90mPYVILS_317gx_EZUuio7fMrcMwJiIjwmWYjVOqD73Hkmw2CeQ/exec";
@@ -436,7 +443,6 @@ function renderZendesk(dadosCompletos){
     options: { 
       plugins: { 
         legend: { position: 'bottom', labels: { font: { size: 11, weight: 'bold' }, boxWidth: 12 } },
-        // CONFIGURAÇÃO DOS NÚMEROS FIXOS NA ROSCA DO SLA
         datalabels: {
           display: true,
           color: '#ffffff',
@@ -457,7 +463,6 @@ function renderZendesk(dadosCompletos){
     options: { 
       plugins: { 
         legend: { display: false },
-        // CONFIGURAÇÃO DOS NÚMEROS FIXOS NAS BARRAS VERTICAIS
         datalabels: {
           display: true,
           anchor: 'end',
@@ -485,7 +490,6 @@ function renderZendesk(dadosCompletos){
     options: { 
       responsive: true, 
       plugins: {
-        // CONFIGURAÇÃO DOS NÚMEROS FIXOS NAS BARRAS EMPILHADAS DOS ANALISTAS (DENTRO/FORA)
         datalabels: {
           display: true,
           color: '#ffffff',
@@ -511,6 +515,7 @@ function renderZendesk(dadosCompletos){
   document.getElementById("cardFora").onclick = () => abrirModal(ticketsFora);
 }
 
+// ================= RENDERIZAÇÃO DA PRODUTIVIDADE GERAL (MELHORIAS DE ALTO NÍVEL) =================
 function renderProdutividade(dadosProd){
   let tTabuladoInd = 0, tChamadoAprov = 0, tProcReslog = 0, tTratZendesk = 0, tTabProc = 0, tTabZen = 0, tGeral = 0;
   let responsaveis = [];
@@ -527,8 +532,10 @@ function renderProdutividade(dadosProd){
     let c2 = Number(p.chamado_aprovado_aberto || p["Chamado aprovado/Aberto/Evidencias"] || 0);
     let c3 = Number(p.processamento_reslog || p["Processamento/Reslog/Movimentação"] || 0);
     let c4 = Number(p.tratado_via_zendesk || p["Tratado via zendesk"] || 0);
-    let c5 = Number(p.tabulado_processamento || p["Tabulado Processamento"] || 0);
-    let c6 = Number(p.tabulado_zendesk || p["Tabulado/Zendesk (Individual)"] || 0);
+    let pTabProc = p.tabulado_processamento !== undefined ? p.tabulado_processamento : p["Tabulado Processamento"];
+    let c5 = Number(pTabProc || 0);
+    let pTabZen = p.tabulado_zendesk !== undefined ? p.tabulado_zendesk : p["Tabulado/Zendesk (Individual)"];
+    let c6 = Number(pTabZen || 0);
     let totalLinha = Number(p.total || p.TOTAL || (c1+c2+c3+c4+c5+c6));
 
     tTabuladoInd += c1; tChamadoAprov += c2; tProcReslog += c3; tTratZendesk += c4; tTabProc += c5; tTabZen += c6;
@@ -543,15 +550,15 @@ function renderProdutividade(dadosProd){
     datasetsMatriz.tabZen.push(c6);
 
     htmlTabela += `
-      <tr class="hover:bg-slate-50 transition-colors">
-        <td class="p-4 font-bold text-slate-900">${nome}</td>
-        <td class="p-4 text-center font-semibold">${c1}</td>
-        <td class="p-4 text-center font-semibold">${c2}</td>
-        <td class="p-4 text-center font-semibold">${c3}</td>
-        <td class="p-4 text-center font-semibold">${c4}</td>
-        <td class="p-4 text-center font-semibold">${c5}</td>
-        <td class="p-4 text-center font-semibold">${c6}</td>
-        <td class="p-4 text-center font-black bg-slate-100/70 text-slate-900">${totalLinha}</td>
+      <tr class="hover:bg-slate-100/50 transition-colors">
+        <td class="p-4 font-bold text-slate-900 border-b border-slate-200/60">${nome}</td>
+        <td class="p-4 text-center font-semibold border-b border-slate-200/60 text-slate-600">${c1}</td>
+        <td class="p-4 text-center font-semibold border-b border-slate-200/60 text-slate-600">${c2}</td>
+        <td class="p-4 text-center font-semibold border-b border-slate-200/60 text-slate-600">${c3}</td>
+        <td class="p-4 text-center font-semibold border-b border-slate-200/60 text-slate-600">${c4}</td>
+        <td class="p-4 text-center font-semibold border-b border-slate-200/60 text-slate-600">${c5}</td>
+        <td class="p-4 text-center font-semibold border-b border-slate-200/60 text-slate-600">${c6}</td>
+        <td class="p-4 text-center font-black bg-slate-100/40 text-slate-900 border-b border-slate-200/60">${totalLinha}</td>
       </tr>
     `;
   });
@@ -563,35 +570,49 @@ function renderProdutividade(dadosProd){
 
   document.getElementById("corpoTabelaProdutividade").innerHTML = htmlTabela || `<tr><td colspan="8" class="text-center py-8 text-slate-400 font-medium">Nenhum dado de produtividade encontrado.</td></tr>`;
 
+  // INJEÇÃO AUTOMÁTICA DA LINHA DE TOTALIZAÇÃO VERTICAL NO RODAPÉ
+  document.getElementById("rodapeTabelaProdutividade").innerHTML = `
+    <td class="p-4 text-left font-black bg-slate-900 text-white uppercase tracking-wider text-[10px]">Total Geral Consolido</td>
+    <td class="p-4 text-slate-900 bg-slate-100">${tTabuladoInd}</td>
+    <td class="p-4 text-slate-900 bg-slate-100">${tChamadoAprov}</td>
+    <td class="p-4 text-slate-900 bg-slate-100">${tProcReslog}</td>
+    <td class="p-4 text-slate-900 bg-slate-100">${tTratZendesk}</td>
+    <td class="p-4 text-slate-900 bg-slate-100">${tTabProc}</td>
+    <td class="p-4 text-slate-900 bg-slate-100">${tTabZen}</td>
+    <td class="p-4 text-white bg-indigo-600 text-sm font-extrabold shadow-inner">${tGeral}</td>
+  `;
+
+  // RENDERING CORPORATIVO DO GRÁFICO DE PRODUTIVIDADE (PALETA ELEGANTE E AJUSTE DE VISUALIZAÇÃO)
   if(chartProd) chartProd.destroy();
   chartProd = new Chart(document.getElementById("prodChart"), {
     type: "bar",
     data: {
       labels: responsaveis,
       datasets: [
-        { label: "Tabulado Individual", data: datasetsMatriz.tabInd, backgroundColor: "#6366f1" },
-        { label: "Chamado Aprovado/Aberto", data: datasetsMatriz.chamAprov, backgroundColor: "#0ea5e9" },
-        { label: "Processamento/Reslog", data: datasetsMatriz.procRes, backgroundColor: "#f59e0b" },
-        { label: "Tratado via Zendesk", data: datasetsMatriz.tratZen, backgroundColor: "#10b981" },
-        { label: "Tabulado Processamento", data: datasetsMatriz.tabProc, backgroundColor: "#ec4899" },
-        { label: "Tabulado/Zendesk", data: datasetsMatriz.tabZen, backgroundColor: "#8b5cf6" }
+        { label: "Tabulado Individual", data: datasetsMatriz.tabInd, backgroundColor: "#475569" }, // Slate 600
+        { label: "Chamado Aprovado/Aberto", data: datasetsMatriz.chamAprov, backgroundColor: "#6366f1" }, // Indigo 500
+        { label: "Processamento/Reslog", data: datasetsMatriz.procRes, backgroundColor: "#f59e0b" }, // Amber 500
+        { label: "Tratado via Zendesk", data: datasetsMatriz.tratZen, backgroundColor: "#10b981" }, // Emerald 500
+        { label: "Tabulado Processamento", data: datasetsMatriz.tabProc, backgroundColor: "#f43f5e" }, // Rose 500
+        { label: "Tabulado/Zendesk", data: datasetsMatriz.tabZen, backgroundColor: "#8b5cf6" } // Violet 500
       ]
     },
     options: {
       responsive: true,
+      maintainAspectRatio: true,
       plugins: { 
-        legend: { position: 'bottom', labels: { boxWidth: 12, font: { weight: 'bold', size: 10 } } },
-        // CONFIGURAÇÃO DOS NÚMEROS FIXOS EM TODAS AS CORES DAS BARRAS DE PRODUTIVIDADE GERAL
+        legend: { position: 'bottom', labels: { boxWidth: 10, padding: 20, font: { weight: 'bold', size: 10 } } },
         datalabels: {
           display: true,
           color: '#ffffff',
           font: { weight: 'bold', size: 10 },
-          formatter: (value) => value > 0 ? value : '' // Não imprime se o valor for zero, limpando o gráfico
+          offset: 4,
+          formatter: (value) => value > 0 ? value : '' // Remove zeros para não entulhar o gráfico
         }
       },
       scales: {
-        x: { stacked: true, grid: { display: false } },
-        y: { stacked: true, grid: { borderDash: [4, 4] } }
+        x: { stacked: true, grid: { display: false }, ticks: { font: { size: 10, weight: 'bold' } } },
+        y: { stacked: true, grid: { borderDash: [4, 4], color: '#e2e8f0' } }
       }
     }
   });
@@ -604,3 +625,5 @@ setInterval(carregar, 60000);
 </script>
 </body>
 </html>
+
+```
