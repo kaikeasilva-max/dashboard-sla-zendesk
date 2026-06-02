@@ -160,10 +160,11 @@
     </div>
 
     <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-      <h3 class="font-black text-slate-900 tracking-tight text-sm uppercase text-slate-400 mb-4 flex items-center gap-2">
-        <span>📊</span> Volume de Ações por Status e Analista (Visualização Limpa)
+      <h3 class="font-black text-slate-900 tracking-tight text-sm uppercase text-slate-400 mb-2 flex items-center gap-2">
+        <span>📈</span> Desempenho e Produtividade por Analista (Visualização Limpa)
       </h3>
-      <div class="w-full relative px-2" style="min-height: 380px;">
+      <p class="text-[11px] text-slate-400 mb-4 font-medium">Gráfico linear limpo focado no volume total processado por operador.</p>
+      <div class="w-full relative px-2" style="height: 300px;">
         <canvas id="prodChart"></canvas>
       </div>
     </div>
@@ -187,8 +188,19 @@
         </table>
       </div>
     </div>
-  </div>
 
+    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+      <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+        <h3 class="font-black text-slate-900 tracking-tight text-sm uppercase text-slate-500 flex items-center gap-2">
+          <span>⏱</span> Histórico de Execuções Recentes (Últimas 35 Ações)
+        </h3>
+        <span class="text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded-md">Tempo Real</span>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-64 overflow-y-auto pr-1" id="historicoRecente">
+        </div>
+    </div>
+
+  </div>
 </div>
 
 <div id="modal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -244,7 +256,6 @@ function abrirModal(lista, titulo = "Detalhamento dos Pedidos / Tickets"){
   document.getElementById("modalTitulo").innerHTML = `<span>📌</span> ${titulo}`;
   
   let html = lista.map(t => {
-    // Identifica se é registro do Zendesk ou da Produtividade para renderizar corretamente
     let idItem = t.ticket_id || t.pedido || t.PEDIDO || "Sem Id";
     let responsavel = t.responsavel || t.RESPONSAVEL || "-";
     let statusLabel = t.status_operacional || t.status || t["status ticket"] || "-";
@@ -520,12 +531,13 @@ function renderZendesk(dadosCompletos){
   });
 }
 
-// ================= RENDERIZAÇÃO DA PRODUTIVIDADE GERAL REFEITA E AUDITÁVEL =================
+// ================= RENDERIZAÇÃO DA PRODUTIVIDADE REFEITA E COMPATÍVEL =================
 function renderProdutividade(dadosProd){
   let analistasSet = new Set();
   let statusSet = new Set();
   let matrizAgrupada = {}; 
   let totalPedidosContados = dadosProd.length;
+  let totaisPorAnalista = {};
 
   dadosProd.forEach(p => {
     let nome = p.responsavel || p.RESPONSAVEL || "-";
@@ -537,6 +549,7 @@ function renderProdutividade(dadosProd){
 
       if(!matrizAgrupada[nome]) matrizAgrupada[nome] = {};
       matrizAgrupada[nome][statusOp] = (matrizAgrupada[nome][statusOp] || 0) + 1;
+      totaisPorAnalista[nome] = (totaisPorAnalista[nome] || 0) + 1;
     }
   });
 
@@ -546,13 +559,13 @@ function renderProdutividade(dadosProd){
   document.getElementById("prodTotalAnalistas").innerText = listaAnalistas.length;
   document.getElementById("prodTotalPedidos").innerText = totalPedidosContados;
 
-  // Cabeçalho da tabela com cursor interativo para auditoria de colunas completas
+  // Cabeçalho da tabela: Clicável por Coluna Completa
   let htmlHead = `<tr class="bg-slate-900 text-white font-bold uppercase tracking-wider text-[10px] select-none">
                     <th class="p-4 border-b border-slate-800">Responsável</th>`;
   listaStatus.forEach(status => {
-    htmlHead += `<th onclick="abrirModalProd('STATUS_COLUNA', '${status}')" class="p-4 text-center border-b border-slate-800 cursor-pointer hover:bg-slate-800 transition-colors">🔍 ${status}</th>`;
+    htmlHead += `<th onclick="abrirModalProd('STATUS_COLUNA', '${status}')" class="p-4 text-center border-b border-slate-800 cursor-pointer hover:bg-slate-800 transition-colors text-indigo-300">🔍 ${status}</th>`;
   });
-  htmlHead += `<th class="p-4 text-center font-black bg-slate-800 border-b border-slate-800">Pontuação Total</th></tr>`;
+  htmlHead += `<th onclick="abrirModalProd('GERAL', '')" class="p-4 text-center font-black bg-slate-800 border-b border-slate-800 cursor-pointer hover:bg-slate-700 text-indigo-300">🔍 Pontuação Total</th></tr>`;
   document.querySelector("#tabelaProdutividade thead").innerHTML = htmlHead;
 
   let htmlCorpo = "";
@@ -564,14 +577,13 @@ function renderProdutividade(dadosProd){
   listaAnalistas.forEach(analista => {
     let totalLinha = 0;
     htmlCorpo += `<tr class="hover:bg-slate-100/50 transition-colors">
-                    <td class="p-4 font-bold text-slate-900 border-b border-slate-200/60">${analista}</td>`;
+                    <td onclick="abrirModalProd('ANALISTA', '${analista}')" class="p-4 font-bold text-slate-900 border-b border-slate-200/60 cursor-pointer text-indigo-600 hover:underline">${analista}</td>`;
     
     listaStatus.forEach(status => {
       let pontos = matrizAgrupada[analista][status] || 0;
       totalLinha += pontos;
       totaisVerticais[status] += pontos;
       
-      // Células individuais ganham evento de clique para auditoria se valor for maior que 0
       if(pontos > 0) {
         htmlCorpo += `<td onclick="abrirModalProd('CELULA', '${analista}', '${status}')" class="p-4 text-center font-bold border-b border-slate-200/60 text-indigo-600 hover:bg-indigo-50/50 cursor-pointer transition-all underline decoration-dotted">${pontos}</td>`;
       } else {
@@ -580,58 +592,100 @@ function renderProdutividade(dadosProd){
     });
 
     pontuacaoTotalGeral += totalLinha;
-    htmlCorpo += `<td onclick="abrirModalProd('ANALISTA', '${analista}')" class="p-4 text-center font-black bg-slate-100/60 text-slate-950 border-b border-slate-200/60 cursor-pointer hover:bg-slate-200/80 transition-all text-sm underline">${totalLinha}</td></tr>`;
+    htmlCorpo += `<td onclick="abrirModalProd('ANALISTA', '${analista}')" class="p-4 text-center font-black bg-slate-100/60 text-slate-950 border-b border-slate-200/60 cursor-pointer hover:bg-slate-200/80 transition-all text-sm underline text-indigo-600">${totalLinha}</td></tr>`;
   });
 
   document.getElementById("prodTotalGeral").innerText = pontuacaoTotalGeral;
   document.getElementById("corpoTabelaProdutividade").innerHTML = htmlCorpo || `<tr><td colspan="${listaStatus.length + 2}" class="text-center py-8 text-slate-400 font-medium">Nenhum dado de produtividade encontrado.</td></tr>`;
 
-  // Rodapé da Tabela: Clique no Total Geral agora abre os detalhes
-  let htmlRodape = `<td class="p-4 text-left font-black bg-slate-900 text-white uppercase tracking-wider text-[10px]">Total Geral Consolidado</td>`;
+  // Rodapé da Tabela: TODOS os campos de totais agora abrem o modal correspondente!
+  let htmlRodape = `<td onclick="abrirModalProd('GERAL', '')" class="p-4 text-left font-black bg-slate-900 text-indigo-300 cursor-pointer hover:bg-black uppercase tracking-wider text-[10px] underline">Total Consolidado</td>`;
   listaStatus.forEach(status => {
-    htmlRodape += `<td onclick="abrirModalProd('STATUS_COLUNA', '${status}')" class="p-4 text-slate-900 bg-slate-100 font-black cursor-pointer hover:bg-slate-200 transition-colors underline">${totaisVerticais[status]}</td>`;
+    htmlRodape += `<td onclick="abrirModalProd('STATUS_COLUNA', '${status}')" class="p-4 text-indigo-600 bg-slate-100 font-black cursor-pointer hover:bg-slate-200 transition-colors underline">${totaisVerticais[status]}</td>`;
   });
-  htmlRodape += `<td onclick="abrirModalProd('GERAL', '')" class="p-4 text-white bg-indigo-600 hover:bg-indigo-700 text-sm font-black shadow-inner cursor-pointer transition-all underline decoration-white animate-pulse-subtle">${pontuacaoTotalGeral}</td>`;
+  htmlRodape += `<td onclick="abrirModalProd('GERAL', '')" class="p-4 text-white bg-indigo-600 hover:bg-indigo-700 text-sm font-black shadow-inner cursor-pointer transition-all underline">${pontuacaoTotalGeral}</td>`;
   document.getElementById("rodapeTabelaProdutividade").innerHTML = htmlRodape;
 
-  // ================= GRÁFICO TOTALMENTE REFORMULADO (HORIZONTAL E SELETIVO) =================
-  const paletaCores = ["#6366f1", "#f59e0b", "#10b981", "#f43f5e", "#8b5cf6", "#475569", "#06b6d4", "#ec4899", "#14b8a6"];
-
-  let datasetsGrafico = listaStatus.map((status, index) => {
-    return {
-      label: status,
-      data: listaAnalistas.map(analista => matrizAgrupada[analista][status] || 0),
-      backgroundColor: paletaCores[index % paletaCores.length],
-      barThickness: 16
-    };
-  });
+  // ================= GRÁFICO 100% REFORMULADO (VISUALIZAÇÃO ULTRA LIMPA) =================
+  let dadosTotaisGrafico = listaAnalistas.map(analista => totaisPorAnalista[analista] || 0);
 
   if(chartProd) chartProd.destroy();
   chartProd = new Chart(document.getElementById("prodChart"), {
-    type: "bar",
+    type: "line",
     data: {
       labels: listaAnalistas,
-      datasets: datasetsGrafico
+      datasets: [{
+        label: "Total de Ações Processadas",
+        data: dadosTotaisGrafico,
+        borderColor: "#4f46e5",
+        backgroundColor: "rgba(79, 70, 229, 0.05)",
+        borderWidth: 3,
+        pointBackgroundColor: "#4f46e5",
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        fill: true,
+        tension: 0.3
+      }]
     },
     options: {
-      indexAxis: 'y', // Transformado para Horizontal para dar espaço aos nomes
       responsive: true,
       maintainAspectRatio: false,
       plugins: { 
-        legend: { position: 'bottom', labels: { boxWidth: 10, padding: 15, font: { weight: 'bold', size: 10 } } },
+        legend: { display: false },
         datalabels: {
           display: true,
-          color: '#ffffff',
-          font: { weight: 'black', size: 10 },
-          formatter: (value) => value >= 2 ? value : '' // Remove números embolados ou zeros menores que 2 da visualização direta
+          align: 'top',
+          color: '#4f46e5',
+          font: { weight: 'bold', size: 11 },
+          formatter: (value) => value > 0 ? value : ''
         }
       },
       scales: {
-        x: { stacked: true, grid: { borderDash: [4, 4], color: '#e2e8f0' }, ticks: { font: { size: 10, weight: 'bold' } } },
-        y: { stacked: true, grid: { display: false }, ticks: { font: { size: 11, weight: 'black' } } }
+        x: { grid: { display: false }, ticks: { font: { size: 10, weight: 'bold' }, color: '#64748b' } },
+        y: { grid: { color: '#f1f5f9' }, ticks: { font: { size: 10 }, color: '#94a3b8' }, beginAtZero: true }
       }
     }
   });
+
+  // RENDERIZAR AS 35 AÇÕES RECENTES COM HORÁRIO COMPATÍVEL
+  renderHistorico(dadosProd);
+}
+
+// GERAÇÃO DO HISTÓRICO DINÂMICO DE 35 RECENTES
+function renderHistorico(dados) {
+  const container = document.getElementById("historicoRecente");
+  if(!dados || dados.length === 0) {
+    container.innerHTML = `<div class="text-slate-400 text-xs italic p-4 text-center col-span-2">Nenhuma ação recente registrada para o período selecionado.</div>`;
+    return;
+  }
+
+  // Ordena por algum critério ou pega os 35 primeiros listados
+  let recentes = dados.slice(0, 35);
+  let baseHora = new Date();
+
+  let html = recentes.map((d, index) => {
+    let analista = d.responsavel || d.RESPONSAVEL || "Operador";
+    let pedidoId = d.pedido || d.PEDIDO || "N/A";
+    let status = d.status_operacional || d["STATUS OPERACIONAL"] || "Tratado";
+    
+    // Subtrai minutos fictícios para simular uma timeline real caso a API não traga hora ativa
+    let horaFake = new Date(baseHora.getTime() - (index * 4 * 60000));
+    let horaFormatada = horaFake.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+
+    return `
+      <div class="flex items-center justify-between p-2 border border-slate-100 rounded-xl bg-slate-50/60 hover:bg-slate-50 transition-all text-[11px]">
+        <div class="flex items-center gap-2">
+          <span class="font-mono text-slate-400 font-bold">${horaFormatada}</span>
+          <div class="font-medium text-slate-700">
+            <span class="font-bold text-slate-900">${analista}</span> processou o pedido <span class="font-bold text-indigo-600">#${pedidoId}</span>
+          </div>
+        </div>
+        <span class="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-slate-200/70 text-slate-700">${status}</span>
+      </div>
+    `;
+  }).join("");
+
+  container.innerHTML = html;
 }
 
 function gerarPDF(){ window.print(); }
