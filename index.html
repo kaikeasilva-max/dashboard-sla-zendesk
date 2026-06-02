@@ -22,7 +22,7 @@
   button, input, .no-print, .tab-nav { display:none !important; }
   body { background-color: white; font-size: 12px; }
   .max-w-7xl { max-w: 100% !important; padding: 0 !important; }
-  .tab-content { display: block !important; } /* Imprime ambos se necessário */
+  .tab-content { display: block !important; }
 }
 </style>
 </head>
@@ -144,28 +144,24 @@
   </div>
 
   <div id="conteudo-produtividade" class="tab-content space-y-6 hidden">
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
       <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-        <p class="text-slate-400 text-[10px] font-bold uppercase tracking-wider">🔥 Total Entregas Realizadas</p>
+        <p class="text-slate-400 text-[10px] font-bold uppercase tracking-wider">🔥 Pontuação Total Entregue</p>
         <h2 id="prodTotalGeral" class="text-2xl font-black text-slate-900 mt-2">0</h2>
       </div>
       <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-indigo-500">
-        <p class="text-indigo-600 text-[10px] font-bold uppercase tracking-wider">📝 Tabulados Totais</p>
-        <h2 id="prodTotalTabulado" class="text-2xl font-black text-slate-900 mt-2">0</h2>
-      </div>
-      <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-sky-500">
-        <p class="text-sky-600 text-[10px] font-bold uppercase tracking-wider">⚙️ Processamentos/Reslog</p>
-        <h2 id="prodTotalProcessamento" class="text-2xl font-black text-slate-900 mt-2">0</h2>
+        <p class="text-indigo-600 text-[10px] font-bold uppercase tracking-wider">📦 Total de Pedidos Tratados</p>
+        <h2 id="prodTotalPedidos" class="text-2xl font-black text-slate-900 mt-2">0</h2>
       </div>
       <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-emerald-500">
-        <p class="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">🎫 Chamados Aprovados/Abertos</p>
-        <h2 id="prodTotalChamados" class="text-2xl font-black text-slate-900 mt-2">0</h2>
+        <p class="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">👥 Total Analistas Ativos</p>
+        <h2 id="prodTotalAnalistas" class="text-2xl font-black text-slate-900 mt-2">0</h2>
       </div>
     </div>
 
     <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
       <h3 class="font-black text-slate-900 tracking-tight text-sm uppercase text-slate-400 mb-4 flex items-center gap-2">
-        <span>📊</span> Volume de Atividades por Analista
+        <span>📊</span> Volume de Ações por Status e Analista (1 Ação = 1 Ponto)
       </h3>
       <div class="w-full relative px-2">
         <canvas id="prodChart" height="110"></canvas>
@@ -175,28 +171,18 @@
     <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
       <div class="p-5 border-b border-slate-100 bg-slate-50/50">
         <h3 class="font-black text-slate-900 tracking-tight text-sm uppercase text-slate-500 flex items-center gap-2">
-          <span>📋</span> Detalhamento das Demandas por Responsável
+          <span>📋</span> Detalhamento Dinâmico de Produtividade (Status Operacional)
         </h3>
       </div>
       <div class="overflow-x-auto w-full">
-        <table class="w-full text-left border-collapse text-xs">
+        <table class="w-full text-left border-collapse text-xs" id="tabelaProdutividade">
           <thead>
-            <tr class="bg-slate-900 text-white font-bold uppercase tracking-wider text-[10px] select-none">
-              <th class="p-4 border-b border-slate-800">Responsável</th>
-              <th class="p-4 text-center border-b border-slate-800">Tabulado Individual</th>
-              <th class="p-4 text-center border-b border-slate-800">Chamado Aprovado/Aberto</th>
-              <th class="p-4 text-center border-b border-slate-800">Processamento/Reslog</th>
-              <th class="p-4 text-center border-b border-slate-800">Tratado via Zendesk</th>
-              <th class="p-4 text-center border-b border-slate-800">Tabulado Processamento</th>
-              <th class="p-4 text-center border-b border-slate-800">Tabulado/Zendesk</th>
-              <th class="p-4 text-center font-black bg-slate-800 border-b border-slate-800">Total Geral</th>
-            </tr>
-          </thead>
+            </thead>
           <tbody id="corpoTabelaProdutividade" class="divide-y divide-slate-200/60 font-semibold text-slate-700 odd:bg-slate-50/30">
-            </tbody>
+          </tbody>
           <tfoot class="bg-slate-100 border-t-2 border-slate-300 text-slate-900 font-black text-center">
             <tr id="rodapeTabelaProdutividade">
-              </tr>
+            </tr>
           </tfoot>
         </table>
       </div>
@@ -313,7 +299,9 @@ function filtrarPorTexto() {
   });
 
   dadosFiltradosProdutividade = dadosCache.produtividade.filter(d => {
-    return String(d.responsavel || d.RESPONSAVEL || '').toUpperCase().includes(termo);
+    return String(d.responsavel || d.RESPONSAVEL || '').toUpperCase().includes(termo) ||
+           String(d.status_operacional || d["STATUS OPERACIONAL"] || d["Status operacional"] || '').toUpperCase().includes(termo) ||
+           String(d.pedido || d.PEDIDO || '').toUpperCase().includes(termo);
   });
   
   renderZendesk(dadosFiltradosZendesk);
@@ -471,8 +459,7 @@ function renderZendesk(dadosCompletos){
           font: { weight: 'black', size: 11 },
           formatter: (value) => value
         }
-      }, 
-      scales: { y: { grid: { display: false } }, x: { grid: { display: false }, ticks: { font: { size: 10, weight: 'bold' } } } } 
+      } 
     }
   });
 
@@ -500,102 +487,97 @@ function renderZendesk(dadosCompletos){
       scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, grid: { borderDash: [4, 4] } } } 
     }
   });
-
-  chartResp.options.onClick = (evt, elements) => {
-    if(!elements.length) return;
-    const el = elements[0];
-    const label = chartResp.data.labels[el.index];
-    const dataset = el.datasetIndex;
-    let lista = dadosUnicos.filter(d => d.responsavel === label);
-    if(dataset === 0) lista = lista.filter(d => d.sla_status?.includes("DENTRO"));
-    if(dataset === 1) lista = lista.filter(d => d.sla_status?.includes("FORA"));
-    abrirModal(lista);
-  };
-  
-  document.getElementById("cardFora").onclick = () => abrirModal(ticketsFora);
 }
 
-// ================= RENDERIZAÇÃO DA PRODUTIVIDADE GERAL (MELHORIAS DE ALTO NÍVEL) =================
+// ================= RENDERIZAÇÃO DA PRODUTIVIDADE GERAL REFEITA COMTEMPLANDO CONTROLLER DINÂMICO DE STATUS =================
 function renderProdutividade(dadosProd){
-  let tTabuladoInd = 0, tChamadoAprov = 0, tProcReslog = 0, tTratZendesk = 0, tTabProc = 0, tTabZen = 0, tGeral = 0;
-  let responsaveis = [];
-  
-  let datasetsMatriz = {
-    tabInd: [], chamAprov: [], procRes: [], tratZen: [], tabProc: [], tabZen: []
-  };
+  let analistasSet = new Set();
+  let statusSet = new Set();
+  let matrizAgrupada = {}; 
+  let totalPedidosContados = dadosProd.length;
 
-  let htmlTabela = "";
-
+  // Processamento e Agrupamento Dinâmico (Soma 1 Ponto por Status Operacional)
   dadosProd.forEach(p => {
-    let nome = p.responsavel || p.RESPONSAVEL || "-";
-    let c1 = Number(p.tabulado_individual || p["Tabulado individual"] || 0);
-    let c2 = Number(p.chamado_aprovado_aberto || p["Chamado aprovado/Aberto/Evidencias"] || 0);
-    let c3 = Number(p.processamento_reslog || p["Processamento/Reslog/Movimentação"] || 0);
-    let c4 = Number(p.tratado_via_zendesk || p["Tratado via zendesk"] || 0);
-    let pTabProc = p.tabulado_processamento !== undefined ? p.tabulado_processamento : p["Tabulado Processamento"];
-    let c5 = Number(pTabProc || 0);
-    let pTabZen = p.tabulado_zendesk !== undefined ? p.tabulado_zendesk : p["Tabulado/Zendesk (Individual)"];
-    let c6 = Number(pTabZen || 0);
-    let totalLinha = Number(p.total || p.TOTAL || (c1+c2+c3+c4+c5+c6));
+    let nome = p.responsavel || p.RESPONSAVEL || p.Responsável || "-";
+    let statusOp = p.status_operacional || p["STATUS OPERACIONAL"] || p["Status operacional"] || "Não Definido";
+    
+    if(nome !== "-") {
+      analistasSet.add(nome);
+      statusSet.add(statusOp);
 
-    tTabuladoInd += c1; tChamadoAprov += c2; tProcReslog += c3; tTratZendesk += c4; tTabProc += c5; tTabZen += c6;
-    tGeral += totalLinha;
-
-    responsaveis.push(nome);
-    datasetsMatriz.tabInd.push(c1);
-    datasetsMatriz.chamAprov.push(c2);
-    datasetsMatriz.procRes.push(c3);
-    datasetsMatriz.tratZen.push(c4);
-    datasetsMatriz.tabProc.push(c5);
-    datasetsMatriz.tabZen.push(c6);
-
-    htmlTabela += `
-      <tr class="hover:bg-slate-100/50 transition-colors">
-        <td class="p-4 font-bold text-slate-900 border-b border-slate-200/60">${nome}</td>
-        <td class="p-4 text-center font-semibold border-b border-slate-200/60 text-slate-600">${c1}</td>
-        <td class="p-4 text-center font-semibold border-b border-slate-200/60 text-slate-600">${c2}</td>
-        <td class="p-4 text-center font-semibold border-b border-slate-200/60 text-slate-600">${c3}</td>
-        <td class="p-4 text-center font-semibold border-b border-slate-200/60 text-slate-600">${c4}</td>
-        <td class="p-4 text-center font-semibold border-b border-slate-200/60 text-slate-600">${c5}</td>
-        <td class="p-4 text-center font-semibold border-b border-slate-200/60 text-slate-600">${c6}</td>
-        <td class="p-4 text-center font-black bg-slate-100/40 text-slate-900 border-b border-slate-200/60">${totalLinha}</td>
-      </tr>
-    `;
+      if(!matrizAgrupada[nome]) matrizAgrupada[nome] = {};
+      matrizAgrupada[nome][statusOp] = (matrizAgrupada[nome][statusOp] || 0) + 1;
+    }
   });
 
-  document.getElementById("prodTotalGeral").innerText = tGeral;
-  document.getElementById("prodTotalTabulado").innerText = (tTabuladoInd + tTabProc + tTabZen);
-  document.getElementById("prodTotalProcessamento").innerText = tProcReslog;
-  document.getElementById("prodTotalChamados").innerText = tChamadoAprov;
+  let listaAnalistas = Array.from(analistasSet).sort();
+  let listaStatus = Array.from(statusSet).sort();
 
-  document.getElementById("corpoTabelaProdutividade").innerHTML = htmlTabela || `<tr><td colspan="8" class="text-center py-8 text-slate-400 font-medium">Nenhum dado de produtividade encontrado.</td></tr>`;
+  // Atualiza os Cards Superiores Informativos
+  document.getElementById("prodTotalAnalistas").innerText = listaAnalistas.length;
+  document.getElementById("prodTotalPedidos").innerText = totalPedidosContados;
 
-  // INJEÇÃO AUTOMÁTICA DA LINHA DE TOTALIZAÇÃO VERTICAL NO RODAPÉ
-  document.getElementById("rodapeTabelaProdutividade").innerHTML = `
-    <td class="p-4 text-left font-black bg-slate-900 text-white uppercase tracking-wider text-[10px]">Total Geral Consolido</td>
-    <td class="p-4 text-slate-900 bg-slate-100">${tTabuladoInd}</td>
-    <td class="p-4 text-slate-900 bg-slate-100">${tChamadoAprov}</td>
-    <td class="p-4 text-slate-900 bg-slate-100">${tProcReslog}</td>
-    <td class="p-4 text-slate-900 bg-slate-100">${tTratZendesk}</td>
-    <td class="p-4 text-slate-900 bg-slate-100">${tTabProc}</td>
-    <td class="p-4 text-slate-900 bg-slate-100">${tTabZen}</td>
-    <td class="p-4 text-white bg-indigo-600 text-sm font-extrabold shadow-inner">${tGeral}</td>
-  `;
+  // Montagem Dinâmica do Cabeçalho da Tabela
+  let htmlHead = `<tr class="bg-slate-900 text-white font-bold uppercase tracking-wider text-[10px] select-none">
+                    <th class="p-4 border-b border-slate-800">Responsável</th>`;
+  listaStatus.forEach(status => {
+    htmlHead += `<th class="p-4 text-center border-b border-slate-800">${status}</th>`;
+  });
+  htmlHead += `<th class="p-4 text-center font-black bg-slate-800 border-b border-slate-800">Pontuação Total</th></tr>`;
+  document.querySelector("#tabelaProdutividade thead").innerHTML = htmlHead;
 
-  // RENDERING CORPORATIVO DO GRÁFICO DE PRODUTIVIDADE (PALETA ELEGANTE E AJUSTE DE VISUALIZAÇÃO)
+  // Montagem do Corpo da Tabela e Cálculo de Totais Horizontais e Verticais
+  let htmlCorpo = "";
+  let totaisVerticais = {};
+  let pontuacaoTotalGeral = 0;
+  
+  listaStatus.forEach(s => totaisVerticais[s] = 0);
+
+  listaAnalistas.forEach(analista => {
+    let totalLinha = 0;
+    htmlCorpo += `<tr class="hover:bg-slate-100/50 transition-colors">
+                    <td class="p-4 font-bold text-slate-900 border-b border-slate-200/60">${analista}</td>`;
+    
+    listaStatus.forEach(status => {
+      let pontos = matrizAgrupada[analista][status] || 0;
+      totalLinha += pontos;
+      totaisVerticais[status] += pontos;
+      htmlCorpo += `<td class="p-4 text-center font-semibold border-b border-slate-200/60 text-slate-600">${pontos}</td>`;
+    });
+
+    pontuacaoTotalGeral += totalLinha;
+    htmlCorpo += `<td class="p-4 text-center font-black bg-slate-100/40 text-slate-900 border-b border-slate-200/60">${totalLinha}</td></tr>`;
+  });
+
+  document.getElementById("prodTotalGeral").innerText = pontuacaoTotalGeral;
+  document.getElementById("corpoTabelaProdutividade").innerHTML = htmlCorpo || `<tr><td colspan="${listaStatus.length + 2}" class="text-center py-8 text-slate-400 font-medium">Nenhum dado de produtividade encontrado.</td></tr>`;
+
+  // Montagem do Rodapé Consolidador
+  let htmlRodape = `<td class="p-4 text-left font-black bg-slate-900 text-white uppercase tracking-wider text-[10px]">Total Geral Consolidado</td>`;
+  listaStatus.forEach(status => {
+    htmlRodape += `<td class="p-4 text-slate-900 bg-slate-100 font-black">${totaisVerticais[status]}</td>`;
+  });
+  htmlRodape += `<td class="p-4 text-white bg-indigo-600 text-sm font-extrabold shadow-inner">${pontuacaoTotalGeral}</td>`;
+  document.getElementById("rodapeTabelaProdutividade").innerHTML = htmlRodape;
+
+  // Cores dinâmicas para o gráfico de barras empilhadas
+  const paletaCores = ["#475569", "#6366f1", "#f59e0b", "#10b981", "#f43f5e", "#8b5cf6", "#06b6d4", "#ec4899", "#14b8a6"];
+
+  let datasetsGrafico = listaStatus.map((status, index) => {
+    return {
+      label: status,
+      data: listaAnalistas.map(analista => matrizAgrupada[analista][status] || 0),
+      backgroundColor: paletaCores[index % paletaCores.length]
+    };
+  });
+
+  // Atualização do Gráfico Chart.js
   if(chartProd) chartProd.destroy();
   chartProd = new Chart(document.getElementById("prodChart"), {
     type: "bar",
     data: {
-      labels: responsaveis,
-      datasets: [
-        { label: "Tabulado Individual", data: datasetsMatriz.tabInd, backgroundColor: "#475569" }, // Slate 600
-        { label: "Chamado Aprovado/Aberto", data: datasetsMatriz.chamAprov, backgroundColor: "#6366f1" }, // Indigo 500
-        { label: "Processamento/Reslog", data: datasetsMatriz.procRes, backgroundColor: "#f59e0b" }, // Amber 500
-        { label: "Tratado via Zendesk", data: datasetsMatriz.tratZen, backgroundColor: "#10b981" }, // Emerald 500
-        { label: "Tabulado Processamento", data: datasetsMatriz.tabProc, backgroundColor: "#f43f5e" }, // Rose 500
-        { label: "Tabulado/Zendesk", data: datasetsMatriz.tabZen, backgroundColor: "#8b5cf6" } // Violet 500
-      ]
+      labels: listaAnalistas,
+      datasets: datasetsGrafico
     },
     options: {
       responsive: true,
@@ -607,7 +589,7 @@ function renderProdutividade(dadosProd){
           color: '#ffffff',
           font: { weight: 'bold', size: 10 },
           offset: 4,
-          formatter: (value) => value > 0 ? value : '' // Remove zeros para não entulhar o gráfico
+          formatter: (value) => value > 0 ? value : ''
         }
       },
       scales: {
@@ -625,5 +607,3 @@ setInterval(carregar, 60000);
 </script>
 </body>
 </html>
-
-```
