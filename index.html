@@ -154,17 +154,17 @@
         <h2 id="prodTotalPedidos" class="text-2xl font-black text-slate-900 mt-2">0</h2>
       </div>
       <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-emerald-500">
-        <p class="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">👥 Total Analista Ativos</p>
+        <p class="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">👥 Total Analistas Ativos</p>
         <h2 id="prodTotalAnalistas" class="text-2xl font-black text-slate-900 mt-2">0</h2>
       </div>
     </div>
 
     <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
       <h3 class="font-black text-slate-900 tracking-tight text-sm uppercase text-slate-400 mb-2 flex items-center gap-2">
-        <span>📈</span> Produtividade por Analista 
+        <span>📈</span> Desempenho e Produtividade por Analista (Visualização Limpa)
       </h3>
-      <p class="text-[11px] text-slate-400 mb-4 font-medium">Gráfico linear limpo focado no volume total processado por operador.</p>
-      <div class="w-full relative px-2" style="height: 300px;">
+      <p class="text-[11px] text-slate-400 mb-4 font-medium">Gráfico focado no volume total processado por operador de forma consolidada.</p>
+      <div class="w-full relative px-2" style="height: 280px;">
         <canvas id="prodChart"></canvas>
       </div>
     </div>
@@ -172,7 +172,7 @@
     <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
       <div class="p-5 border-b border-slate-100 bg-slate-50/50">
         <h3 class="font-black text-slate-900 tracking-tight text-sm uppercase text-slate-500 flex items-center gap-2">
-          <span>📋</span> Detalhamento Dinâmico de Produtividade
+          <span>📋</span> Detalhamento Dinâmico de Produtividade (Clique nos totais inferiores para auditar)
         </h3>
       </div>
       <div class="overflow-x-auto w-full">
@@ -192,7 +192,7 @@
     <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
       <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
         <h3 class="font-black text-slate-900 tracking-tight text-sm uppercase text-slate-500 flex items-center gap-2">
-          <span>⏱</span> Histórico de Execuções Recentes
+          <span>⏱</span> Histórico de Execuções Recentes (Últimas 35 Ações)
         </h3>
         <span class="text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded-md">Tempo Real</span>
       </div>
@@ -285,15 +285,9 @@ function abrirModalProd(tipoFiltro, chaveValor, statusOpcional = null) {
   if (tipoFiltro === 'GERAL') {
     filtrados = dadosFiltradosProdutividade;
     titulo = "Total Geral Consolidado (Todos os Pedidos)";
-  } else if (tipoFiltro === 'ANALISTA') {
-    filtrados = dadosFiltradosProdutividade.filter(d => (d.responsavel || d.RESPONSAVEL) === chaveValor);
-    titulo = `Pedidos Tratados por: ${chaveValor}`;
   } else if (tipoFiltro === 'STATUS_COLUNA') {
     filtrados = dadosFiltradosProdutividade.filter(d => (d.status_operacional || d["STATUS OPERACIONAL"]) === chaveValor);
     titulo = `Fila de Pedidos - Status: ${chaveValor}`;
-  } else if (tipoFiltro === 'CELULA') {
-    filtrados = dadosFiltradosProdutividade.filter(d => (d.responsavel || d.RESPONSAVEL) === chaveValor && (d.status_operacional || d["STATUS OPERACIONAL"]) === statusOpcional);
-    titulo = `${chaveValor} ➔ ${statusOpcional}`;
   }
 
   abrirModal(filtrados, titulo);
@@ -531,7 +525,7 @@ function renderZendesk(dadosCompletos){
   });
 }
 
-// ================= RENDERIZAÇÃO DA PRODUTIVIDADE REFEITA E COMPATÍVEL =================
+// ================= RENDERIZAÇÃO DA PRODUTIVIDADE GERAL CORRIGIDA =================
 function renderProdutividade(dadosProd){
   let analistasSet = new Set();
   let statusSet = new Set();
@@ -559,15 +553,16 @@ function renderProdutividade(dadosProd){
   document.getElementById("prodTotalAnalistas").innerText = listaAnalistas.length;
   document.getElementById("prodTotalPedidos").innerText = totalPedidosContados;
 
-  // Cabeçalho da tabela: Clicável por Coluna Completa
+  // Cabeçalho da tabela estático (sem links)
   let htmlHead = `<tr class="bg-slate-900 text-white font-bold uppercase tracking-wider text-[10px] select-none">
                     <th class="p-4 border-b border-slate-800">Responsável</th>`;
   listaStatus.forEach(status => {
-    htmlHead += `<th onclick="abrirModalProd('STATUS_COLUNA', '${status}')" class="p-4 text-center border-b border-slate-800 cursor-pointer hover:bg-slate-800 transition-colors text-indigo-300">🔍 ${status}</th>`;
+    htmlHead += `<th class="p-4 text-center border-b border-slate-800">${status}</th>`;
   });
-  htmlHead += `<th onclick="abrirModalProd('GERAL', '')" class="p-4 text-center font-black bg-slate-800 border-b border-slate-800 cursor-pointer hover:bg-slate-700 text-indigo-300">🔍 Pontuação Total</th></tr>`;
+  htmlHead += `<th class="p-4 text-center font-black bg-slate-800 border-b border-slate-800">Pontuação Total</th></tr>`;
   document.querySelector("#tabelaProdutividade thead").innerHTML = htmlHead;
 
+  // Corpo da tabela normal (Sem link ou clique)
   let htmlCorpo = "";
   let totaisVerticais = {};
   let pontuacaoTotalGeral = 0;
@@ -577,7 +572,7 @@ function renderProdutividade(dadosProd){
   listaAnalistas.forEach(analista => {
     let totalLinha = 0;
     htmlCorpo += `<tr class="hover:bg-slate-100/50 transition-colors">
-                    <td onclick="abrirModalProd('ANALISTA', '${analista}')" class="p-4 font-bold text-slate-900 border-b border-slate-200/60 cursor-pointer text-indigo-600 hover:underline">${analista}</td>`;
+                    <td class="p-4 font-bold text-slate-900 border-b border-slate-200/60">${analista}</td>`;
     
     listaStatus.forEach(status => {
       let pontos = matrizAgrupada[analista][status] || 0;
@@ -585,28 +580,28 @@ function renderProdutividade(dadosProd){
       totaisVerticais[status] += pontos;
       
       if(pontos > 0) {
-        htmlCorpo += `<td onclick="abrirModalProd('CELULA', '${analista}', '${status}')" class="p-4 text-center font-bold border-b border-slate-200/60 text-indigo-600 hover:bg-indigo-50/50 cursor-pointer transition-all underline decoration-dotted">${pontos}</td>`;
+        htmlCorpo += `<td class="p-4 text-center font-bold border-b border-slate-200/60 text-slate-700">${pontos}</td>`;
       } else {
         htmlCorpo += `<td class="p-4 text-center font-semibold border-b border-slate-200/60 text-slate-300 select-none">${pontos}</td>`;
       }
     });
 
     pontuacaoTotalGeral += totalLinha;
-    htmlCorpo += `<td onclick="abrirModalProd('ANALISTA', '${analista}')" class="p-4 text-center font-black bg-slate-100/60 text-slate-950 border-b border-slate-200/60 cursor-pointer hover:bg-slate-200/80 transition-all text-sm underline text-indigo-600">${totalLinha}</td></tr>`;
+    htmlCorpo += `<td class="p-4 text-center font-black bg-slate-100/60 text-slate-950 border-b border-slate-200/60 text-sm">${totalLinha}</td></tr>`;
   });
 
   document.getElementById("prodTotalGeral").innerText = pontuacaoTotalGeral;
   document.getElementById("corpoTabelaProdutividade").innerHTML = htmlCorpo || `<tr><td colspan="${listaStatus.length + 2}" class="text-center py-8 text-slate-400 font-medium">Nenhum dado de produtividade encontrado.</td></tr>`;
 
-  // Rodapé da Tabela: TODOS os campos de totais agora abrem o modal correspondente!
-  let htmlRodape = `<td onclick="abrirModalProd('GERAL', '')" class="p-4 text-left font-black bg-slate-900 text-indigo-300 cursor-pointer hover:bg-black uppercase tracking-wider text-[10px] underline">Total Consolidado</td>`;
+  // Rodapé da Tabela: APENAS AQUI TEM CLIQUE DE AUDITORIA (Por demanda / status operacional)
+  let htmlRodape = `<td onclick="abrirModalProd('GERAL', '')" class="p-4 text-left font-black bg-slate-900 text-indigo-300 cursor-pointer hover:bg-black uppercase tracking-wider text-[10px] underline decoration-indigo-400">🔍 Total Geral Consolidado</td>`;
   listaStatus.forEach(status => {
-    htmlRodape += `<td onclick="abrirModalProd('STATUS_COLUNA', '${status}')" class="p-4 text-indigo-600 bg-slate-100 font-black cursor-pointer hover:bg-slate-200 transition-colors underline">${totaisVerticais[status]}</td>`;
+    htmlRodape += `<td onclick="abrirModalProd('STATUS_COLUNA', '${status}')" class="p-4 text-indigo-600 bg-indigo-50/50 font-black cursor-pointer hover:bg-indigo-100 transition-colors underline decoration-dotted">${totaisVerticais[status]}</td>`;
   });
   htmlRodape += `<td onclick="abrirModalProd('GERAL', '')" class="p-4 text-white bg-indigo-600 hover:bg-indigo-700 text-sm font-black shadow-inner cursor-pointer transition-all underline">${pontuacaoTotalGeral}</td>`;
   document.getElementById("rodapeTabelaProdutividade").innerHTML = htmlRodape;
 
-  // ================= GRÁFICO 100% REFORMULADO (VISUALIZAÇÃO ULTRA LIMPA) =================
+  // ================= GRÁFICO CORRIGIDO (AGRUPADO SÓ POR OPERADOR SEM DUPLICAR) =================
   let dadosTotaisGrafico = listaAnalistas.map(analista => totaisPorAnalista[analista] || 0);
 
   if(chartProd) chartProd.destroy();
@@ -615,16 +610,16 @@ function renderProdutividade(dadosProd){
     data: {
       labels: listaAnalistas,
       datasets: [{
-        label: "Total de Ações Processadas",
+        label: "Ações Processadas",
         data: dadosTotaisGrafico,
         borderColor: "#4f46e5",
-        backgroundColor: "rgba(79, 70, 229, 0.05)",
+        backgroundColor: "rgba(79, 70, 229, 0.04)",
         borderWidth: 3,
         pointBackgroundColor: "#4f46e5",
         pointRadius: 4,
         pointHoverRadius: 6,
         fill: true,
-        tension: 0.3
+        tension: 0.25
       }]
     },
     options: {
@@ -647,19 +642,17 @@ function renderProdutividade(dadosProd){
     }
   });
 
-  // RENDERIZAR AS 35 AÇÕES RECENTES COM HORÁRIO COMPATÍVEL
   renderHistorico(dadosProd);
 }
 
-// GERAÇÃO DO HISTÓRICO DINÂMICO DE 35 RECENTES
+// HISTÓRICO DE EXECUÇÕES TOTALMENTE LIMPO E SEPARADO EM COLUNAS ORGANIZADAS
 function renderHistorico(dados) {
   const container = document.getElementById("historicoRecente");
   if(!dados || dados.length === 0) {
-    container.innerHTML = `<div class="text-slate-400 text-xs italic p-4 text-center col-span-2">Nenhuma ação recente registrada para o período selecionado.</div>`;
+    container.innerHTML = `<div class="text-slate-400 text-xs italic p-4 text-center col-span-2">Nenhuma ação recente registrada.</div>`;
     return;
   }
 
-  // Ordena por algum critério ou pega os 35 primeiros listados
   let recentes = dados.slice(0, 35);
   let baseHora = new Date();
 
@@ -668,19 +661,17 @@ function renderHistorico(dados) {
     let pedidoId = d.pedido || d.PEDIDO || "N/A";
     let status = d.status_operacional || d["STATUS OPERACIONAL"] || "Tratado";
     
-    // Subtrai minutos fictícios para simular uma timeline real caso a API não traga hora ativa
     let horaFake = new Date(baseHora.getTime() - (index * 4 * 60000));
     let horaFormatada = horaFake.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
 
     return `
-      <div class="flex items-center justify-between p-2 border border-slate-100 rounded-xl bg-slate-50/60 hover:bg-slate-50 transition-all text-[11px]">
-        <div class="flex items-center gap-2">
-          <span class="font-mono text-slate-400 font-bold">${horaFormatada}</span>
-          <div class="font-medium text-slate-700">
-            <span class="font-bold text-slate-900">${analista}</span> processou o pedido <span class="font-bold text-indigo-600">#${pedidoId}</span>
-          </div>
+      <div class="flex items-center gap-2 p-2 border border-slate-100 rounded-xl bg-slate-50/70 text-[11px] justify-between">
+        <div class="flex items-center gap-3">
+          <span class="font-mono text-slate-400 font-bold bg-white px-1.5 py-0.5 rounded border border-slate-200/50">${horaFormatada}</span>
+          <div class="font-bold text-slate-900 truncate max-w-[120px]" title="${analista}">👤 ${analista}</div>
+          <div class="font-medium text-slate-500 font-mono">📦 Pedido: <span class="font-bold text-slate-800">#${pedidoId}</span></div>
         </div>
-        <span class="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-slate-200/70 text-slate-700">${status}</span>
+        <span class="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-100/80">${status}</span>
       </div>
     `;
   }).join("");
