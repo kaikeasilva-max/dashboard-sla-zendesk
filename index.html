@@ -39,7 +39,7 @@
       </div>
       <p class="text-slate-400 text-xs font-medium mt-1">Indicadores Zendesk & Produtividade</p>
     </div>
-    
+     
     <div id="vazaoContainer" class="bg-white/10 px-4 py-2.5 rounded-xl border border-white/10 min-w-[150px]">
       <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Vazão da Operação</p>
       <h3 id="conversaoMédia" class="text-xl font-black text-green-400 mt-0.5">0%</h3>
@@ -163,7 +163,7 @@
     <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
       <div class="p-5 border-b border-slate-100 bg-slate-50/50">
         <h3 class="font-black text-slate-900 tracking-tight text-sm uppercase text-slate-500 flex items-center gap-2">
-          <span>📋</span> Detalhamento Dinâmico de Produtividade
+          <span>📋</span> Detalhamento Dinâmico de Produtividade (Clique nos totais inferiores para auditar)
         </h3>
       </div>
       <div class="overflow-x-auto w-full">
@@ -348,10 +348,13 @@ function filtrarPorTexto() {
            String(d.pedido || d.PEDIDO || '').toUpperCase().includes(termo);
   });
 
+  // ================= AJUSTADO CIRURGICAMENTE: CHAVES INTERNAS PARA ABA "dvg" =================
   dadosFiltradosDivergencias = dadosCache.divergencias.filter(d => {
-    return String(d.responsavel || d.RESPONSÁVEL || d.RESPONSAVEL || '').toUpperCase().includes(termo) ||
-           String(d.pedido || d.Pedido || d.PEDIDO || '').toUpperCase().includes(termo) ||
-           String(d.descricao_nf || d["DESCRIÇÃO da NF"] || d.DESCRICAO_NF || '').toUpperCase().includes(termo);
+    return String(d.responsavel || '').toUpperCase().includes(termo) ||
+           String(d.pedido || '').toUpperCase().includes(termo) ||
+           String(d.descricao_nf || '').toUpperCase().includes(termo) ||
+           String(d.macro_de_processamento || '').toUpperCase().includes(termo) ||
+           String(d.obs_dvg || '').toUpperCase().includes(termo);
   });
   
   renderZendesk(dadosFiltradosZendesk);
@@ -469,7 +472,6 @@ function renderZendesk(dadosCompletos){
   });
 }
 
-// ================= RENDERIZAÇÃO DA PRODUTIVIDADE GERAL CORRIGIDA =================
 function renderProdutividade(dadosProd){
   let analistasSet = new Set();
   let statusSet = new Set();
@@ -583,7 +585,7 @@ function renderProdutividade(dadosProd){
   });
 }
 
-// ================= PROCESSAMENTO DE DIVERGÊNCIAS (MAPEAMENTO SUPORTE ADAPTATIVO) =================
+// ================= RENDERIZAÇÃO DE DIVERGÊNCIAS AJUSTADA PARA O BACK-END "dvg" =================
 function renderDivergencias(dadosDiv) {
   const container = document.getElementById("corpoDivergencias");
   if (!dadosDiv || dadosDiv.length === 0) {
@@ -592,18 +594,16 @@ function renderDivergencias(dadosDiv) {
   }
 
   let html = dadosDiv.map(d => {
-    // Tratamento de chaves redundantes para blindagem total contra falha de leitura
-    let dataRaw = d.data || d.DATA || "-";
-    if(dataRaw.includes("T")) dataRaw = dataRaw.split("T")[0];
-
-    let responsavel = d.responsavel || d.RESPONSÁVEL || d.RESPONSAVEL || "-";
-    let pedido = d.pedido || d.Pedido || d.PEDIDO || "-";
-    let descricao = d.descricao_nf || d["DESCRIÇÃO da NF"] || d.DESCRICAO_NF || "-";
-    let quantidade = d.qtd || d.QTD || "0";
-    let valor = d.valor_total || d["VALOR TOTAL"] || d.VALOR_TOTAL || 0;
-    let macro = d.macro_de_processamento || d["MACRO DE PROCESSAMENTO"] || d.MACRO_DE_PROCESSAMENTO || "-";
-    let observacao = d.obs_dvg || d["OBS DVG"] || d.OBS_DVG || "-";
-    let aging = d.aging_tabulacao || d["Aging Tabulação"] || d.AGING_TABULACAO || "0d";
+    // Garante leitura segura mapeando as chaves normatizadas enviadas pela aba "dvg" do Apps Script
+    let dataRaw = d.data || "-";
+    let responsavel = d.responsavel || "-";
+    let pedido = d.pedido || "-";
+    let descricao = d.descricao_nf || "-";
+    let quantidade = d.qtd || "0";
+    let valor = d.valor_total !== undefined ? d.valor_total : 0;
+    let macro = d.macro_de_processamento || "-";
+    let observacao = d.obs_dvg || "-";
+    let aging = d.aging_tabulacao || "0d";
 
     return `
       <tr class="hover:bg-rose-50/20 transition-colors">
