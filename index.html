@@ -41,7 +41,7 @@
     </div>
     
     <div id="vazaoContainer" class="bg-white/10 px-4 py-2.5 rounded-xl border border-white/10 min-w-[150px]">
-      <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Vazão da Operação (Zendesk)</p>
+      <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Vazão da Operação</p>
       <h3 id="conversaoMédia" class="text-xl font-black text-green-400 mt-0.5">0%</h3>
     </div>
   </div>
@@ -82,7 +82,7 @@
         <h2 id="total" class="text-2xl font-black text-slate-900 mt-2">0</h2>
       </div>
       <div class="card bg-white p-5 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-emerald-500" onclick="filtrarCards('SAIDA')">
-        <p class="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">🟢 Concluídos (Saída)</p>
+        <p class="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">🟢 Concluídos</p>
         <h2 id="finalizados" class="text-2xl font-black text-slate-900 mt-2">0</h2>
       </div>
       <div class="card bg-white p-5 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-amber-500" onclick="filtrarCards('PENDENTE')">
@@ -90,7 +90,7 @@
         <h2 id="pendentes" class="text-2xl font-black text-slate-900 mt-2">0</h2>
       </div>
       <div class="card bg-white p-5 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-rose-500" id="cardFora" onclick="filtrarCards('FORA')">
-        <p class="text-rose-600 text-[10px] font-bold uppercase tracking-wider">🔴 Estourados (Fora SLA)</p>
+        <p class="text-rose-600 text-[10px] font-bold uppercase tracking-wider">🔴 (Fora SLA)</p>
         <h2 id="fora" class="text-2xl font-black text-slate-900 mt-2">0</h2>
       </div>
       <div class="card bg-white p-5 rounded-2xl shadow-sm border border-slate-100 bg-gradient-to-br from-white to-rose-50/30" id="cardCritico" onclick="filtrarCards('CRITICO')">
@@ -132,7 +132,7 @@
     <div class="bg-rose-50 border border-rose-100 p-4 rounded-xl flex flex-col md:flex-row gap-2 md:items-center">
       <div class="flex items-center gap-1.5 min-w-[180px]">
         <span class="text-base">🚨</span>
-        <h3 class="font-black text-rose-800 tracking-tight text-xs uppercase">Backlog Alerta Crítico (+5d):</h3>
+        <h3 class="font-black text-rose-800 tracking-tight text-xs uppercase">Ticket Crítico (+5D):</h3>
       </div>
       <p id="lista" class="text-rose-900 font-mono text-xs bg-white/70 px-2.5 py-1 rounded-lg border border-rose-100 flex-1 break-all"></p>
     </div>
@@ -141,7 +141,7 @@
   <div id="conteudo-produtividade" class="tab-content space-y-6 hidden">
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-indigo-500">
-        <p class="text-indigo-600 text-[10px] font-bold uppercase tracking-wider">🔥 Pontuação Total Entregue</p>
+        <p class="text-indigo-600 text-[10px] font-bold uppercase tracking-wider">🔥 Total Entregue</p>
         <h2 id="prodTotalGeral" class="text-2xl font-black text-slate-900 mt-2">0</h2>
       </div>
       <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-emerald-500">
@@ -152,9 +152,9 @@
 
     <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
       <h3 class="font-black text-slate-900 tracking-tight text-sm uppercase text-slate-400 mb-2 flex items-center gap-2">
-        <span>📊</span> Desempenho Consolidado por Analista (Volume de Entregas)
+        <span>📊</span> Desempenho Consolidado por Analista
       </h3>
-      <p class="text-[11px] text-slate-400 mb-4 font-medium">Ranking ordenado de produtividade para suporte estratégico da liderança.</p>
+      <p class="text-[11px] text-slate-400 mb-4 font-medium">Ranking de produtividade.</p>
       <div class="w-full relative px-2" style="height: 320px;">
         <canvas id="prodChart"></canvas>
       </div>
@@ -163,7 +163,7 @@
     <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
       <div class="p-5 border-b border-slate-100 bg-slate-50/50">
         <h3 class="font-black text-slate-900 tracking-tight text-sm uppercase text-slate-500 flex items-center gap-2">
-          <span>📋</span> Detalhamento Dinâmico de Produtividade (Clique nos totais inferiores para auditar)
+          <span>📋</span> Detalhamento Dinâmico de Produtividade
         </h3>
       </div>
       <div class="overflow-x-auto w-full">
@@ -183,7 +183,7 @@
     <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
       <div class="p-5 border-b border-slate-100 bg-rose-50/40 flex items-center justify-between">
         <h3 class="font-black text-rose-900 tracking-tight text-sm uppercase flex items-center gap-2">
-          <span>⚠️</span> Relatório de Divergências Operacionais (Aba DIVERGENCIA_R)
+          <span>⚠️</span> Divergências Operacionais 
         </h3>
         <span class="text-[10px] bg-rose-100 text-rose-800 font-bold px-2.5 py-1 rounded-md">Controle de Erros</span>
       </div>
@@ -349,9 +349,9 @@ function filtrarPorTexto() {
   });
 
   dadosFiltradosDivergencias = dadosCache.divergencias.filter(d => {
-    return String(d.responsavel || d.RESPONSÁVEL || '').toUpperCase().includes(termo) ||
-           String(d.pedido || d.Pedido || '').toUpperCase().includes(termo) ||
-           String(d.descricao_nf || d["DESCRIÇÃO da NF"] || '').toUpperCase().includes(termo);
+    return String(d.responsavel || d.RESPONSÁVEL || d.RESPONSAVEL || '').toUpperCase().includes(termo) ||
+           String(d.pedido || d.Pedido || d.PEDIDO || '').toUpperCase().includes(termo) ||
+           String(d.descricao_nf || d["DESCRIÇÃO da NF"] || d.DESCRICAO_NF || '').toUpperCase().includes(termo);
   });
   
   renderZendesk(dadosFiltradosZendesk);
@@ -477,13 +477,11 @@ function renderProdutividade(dadosProd){
   let totaisPorAnalista = {};
   let pontuacaoTotalGeral = 0;
 
-  // Processa e limpa os dados brutos recebidos da planilha
   dadosProd.forEach(p => {
     let nomeCru = p.responsavel || p.RESPONSAVEL || "-";
-    let nome = String(nomeCru).trim(); // Remove espaços ocultos que geram duplicação (Ex: Janaina)
+    let nome = String(nomeCru).trim(); 
     let statusOp = p.status_operacional || p["STATUS OPERACIONAL"] || "Não Definido";
     
-    // Ignora status inválidos, vazios ou marcados como "Não Definido"
     if(nome !== "-" && statusOp !== "Não Definido" && String(statusOp).trim() !== "") {
       analistasSet.add(nome);
       statusSet.add(statusOp);
@@ -498,11 +496,9 @@ function renderProdutividade(dadosProd){
   let listaAnalistas = Array.from(analistasSet);
   let listaStatus = Array.from(statusSet).sort();
 
-  // Atualiza os indicadores superiores ajustados
   document.getElementById("prodTotalAnalistas").innerText = listaAnalistas.length;
   document.getElementById("prodTotalGeral").innerText = pontuacaoTotalGeral;
 
-  // Montagem Dinâmica do Cabeçalho da Tabela (Sem "Não Definido")
   let htmlHead = `<tr class="bg-slate-900 text-white font-bold uppercase tracking-wider text-[10px] select-none">
                     <th class="p-4 border-b border-slate-800">Responsável</th>`;
   listaStatus.forEach(status => {
@@ -511,7 +507,6 @@ function renderProdutividade(dadosProd){
   htmlHead += `<th class="p-4 text-center font-black bg-slate-800 border-b border-slate-800">Pontuação Total</th></tr>`;
   document.querySelector("#tabelaProdutividade thead").innerHTML = htmlHead;
 
-  // Montagem do Corpo da Tabela
   let htmlCorpo = "";
   let totaisVerticais = {};
   listaStatus.forEach(s => totaisVerticais[s] = 0);
@@ -538,7 +533,6 @@ function renderProdutividade(dadosProd){
 
   document.getElementById("corpoTabelaProdutividade").innerHTML = htmlCorpo || `<tr><td colspan="${listaStatus.length + 2}" class="text-center py-8 text-slate-400 font-medium">Nenhum dado de produtividade encontrado.</td></tr>`;
 
-  // Rodapé da Tabela com Auditoria
   let htmlRodape = `<td onclick="abrirModalProd('GERAL', '')" class="p-4 text-left font-black bg-slate-900 text-indigo-300 cursor-pointer hover:bg-black uppercase tracking-wider text-[10px] underline">🔍 Total Geral Consolidado</td>`;
   listaStatus.forEach(status => {
     htmlRodape += `<td onclick="abrirModalProd('STATUS_COLUNA', '${status}')" class="p-4 text-indigo-600 bg-indigo-50/50 font-black cursor-pointer hover:bg-indigo-100 transition-colors underline decoration-dotted">${totaisVerticais[status]}</td>`;
@@ -546,13 +540,10 @@ function renderProdutividade(dadosProd){
   htmlRodape += `<td onclick="abrirModalProd('GERAL', '')" class="p-4 text-white bg-indigo-600 hover:bg-indigo-700 text-sm font-black shadow-inner cursor-pointer transition-all underline">${pontuacaoTotalGeral}</td>`;
   document.getElementById("rodapeTabelaProdutividade").innerHTML = htmlRodape;
 
-  // ================= GRÁFICO EXECUTIVO HORIZONTAL ORDENADO (DO MAIOR PARA O MENOR) =================
-  // Cria uma estrutura chave-valor para classificar o ranking de forma confiável
   let arrayRanking = listaAnalistas.map(analista => {
     return { nome: analista, total: totaisPorAnalista[analista] || 0 };
   });
   
-  // Ordenação descendente (Maior entrega no topo)
   arrayRanking.sort((a, b) => b.total - a.total);
 
   let labelsOrdenadas = arrayRanking.map(item => item.nome);
@@ -592,7 +583,7 @@ function renderProdutividade(dadosProd){
   });
 }
 
-// ================= PROCESSAMENTO DE DIVERGÊNCIAS =================
+// ================= PROCESSAMENTO DE DIVERGÊNCIAS (MAPEAMENTO SUPORTE ADAPTATIVO) =================
 function renderDivergencias(dadosDiv) {
   const container = document.getElementById("corpoDivergencias");
   if (!dadosDiv || dadosDiv.length === 0) {
@@ -601,20 +592,30 @@ function renderDivergencias(dadosDiv) {
   }
 
   let html = dadosDiv.map(d => {
-    let dataFormatada = d.data || d.DATA || "-";
-    if(dataFormatada.includes("T")) dataFormatada = dataFormatada.split("T")[0];
+    // Tratamento de chaves redundantes para blindagem total contra falha de leitura
+    let dataRaw = d.data || d.DATA || "-";
+    if(dataRaw.includes("T")) dataRaw = dataRaw.split("T")[0];
+
+    let responsavel = d.responsavel || d.RESPONSÁVEL || d.RESPONSAVEL || "-";
+    let pedido = d.pedido || d.Pedido || d.PEDIDO || "-";
+    let descricao = d.descricao_nf || d["DESCRIÇÃO da NF"] || d.DESCRICAO_NF || "-";
+    let quantidade = d.qtd || d.QTD || "0";
+    let valor = d.valor_total || d["VALOR TOTAL"] || d.VALOR_TOTAL || 0;
+    let macro = d.macro_de_processamento || d["MACRO DE PROCESSAMENTO"] || d.MACRO_DE_PROCESSAMENTO || "-";
+    let observacao = d.obs_dvg || d["OBS DVG"] || d.OBS_DVG || "-";
+    let aging = d.aging_tabulacao || d["Aging Tabulação"] || d.AGING_TABULACAO || "0d";
 
     return `
       <tr class="hover:bg-rose-50/20 transition-colors">
-        <td class="p-3 text-slate-500 font-mono">${dataFormatada}</td>
-        <td class="p-3 font-bold text-slate-900">${d.responsavel || d.RESPONSÁVEL || "-"}</td>
-        <td class="p-3 font-mono font-bold text-slate-700">#${d.pedido || d.Pedido || "-"}</td>
-        <td class="p-3 truncate max-w-[180px]" title="${d.descricao_nf || d["DESCRIÇÃO da NF"] || '-'}">${d.descricao_nf || d["DESCRIÇÃO da NF"] || "-"}</td>
-        <td class="p-3 text-center font-bold">${d.qtd || d.QTD || "0"}</td>
-        <td class="p-3 text-right text-emerald-600 font-bold">R$ ${Number(d.valor_total || d["VALOR TOTAL"] || 0).toFixed(2)}</td>
-        <td class="p-3"><span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-bold">${d.macro_de_processamento || d["MACRO DE PROCESSAMENTO"] || "-"}</span></td>
-        <td class="p-3 text-slate-600 truncate max-w-[150px]" title="${d.obs_dvg || d['OBS DVG'] || '-'}">${d.obs_dvg || d["OBS DVG"] || "-"}</td>
-        <td class="p-3 text-center"><span class="px-2 py-0.5 rounded text-[10px] font-black bg-amber-100 text-amber-800">${d.aging_tabulacao || d["Aging Tabulação"] || "0d"}</span></td>
+        <td class="p-3 text-slate-500 font-mono">${dataRaw}</td>
+        <td class="p-3 font-bold text-slate-900">${responsavel}</td>
+        <td class="p-3 font-mono font-bold text-slate-700">#${pedido}</td>
+        <td class="p-3 truncate max-w-[180px]" title="${descricao}">${descricao}</td>
+        <td class="p-3 text-center font-bold">${quantidade}</td>
+        <td class="p-3 text-right text-emerald-600 font-bold">R$ ${Number(valor).toFixed(2)}</td>
+        <td class="p-3"><span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-bold">${macro}</span></td>
+        <td class="p-3 text-slate-600 truncate max-w-[150px]" title="${observacao}">${observacao}</td>
+        <td class="p-3 text-center"><span class="px-2 py-0.5 rounded text-[10px] font-black bg-amber-100 text-amber-800">${aging}</span></td>
       </tr>
     `;
   }).join("");
