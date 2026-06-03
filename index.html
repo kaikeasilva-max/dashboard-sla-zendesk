@@ -59,11 +59,11 @@
     <div class="flex flex-wrap gap-3 items-center w-full md:w-auto">
       <div class="flex flex-col">
         <label class="text-[10px] font-bold text-slate-400 uppercase mb-1">Início período</label>
-        <input type="date" id="dataInicio" class="p-2 border border-slate-200 rounded-xl bg-slate-50 text-xs font-bold">
+        <input type="date" id="dataInicio" class="p-2 border border-slate-200 rounded-xl bg-slate-50 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-slate-400">
       </div>
       <div class="flex flex-col">
         <label class="text-[10px] font-bold text-slate-400 uppercase mb-1">Fim período</label>
-        <input type="date" id="dataFim" class="p-2 border border-slate-200 rounded-xl bg-slate-50 text-xs font-bold">
+        <input type="date" id="dataFim" class="p-2 border border-slate-200 rounded-xl bg-slate-50 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-slate-400">
       </div>
     </div>
 
@@ -204,7 +204,7 @@
           </thead>
           <tbody id="corpoDivergencias" class="divide-y divide-slate-200 font-medium text-slate-700">
             <tr>
-              <td colspan="9" class="text-center py-6 text-slate-400 italic">Nenhuma divergência carregada.</td>
+              <td colspan="9" class="text-center py-6 text-slate-400 italic">Nenhuma divergência carregada para o período.</td>
             </tr>
           </tbody>
         </table>
@@ -304,7 +304,7 @@ function abrirModalProd(tipoFiltro, chaveValor) {
   abrirModal(filtrados, titulo);
 }
 
-function fecharModal(); { document.getElementById("modal").classList.add("hidden"); }
+function fecharModal(){ document.getElementById("modal").classList.add("hidden"); }
 
 function carregar(){
   let campoIni = document.getElementById("dataInicio").value;
@@ -325,9 +325,9 @@ function carregar(){
   .then(data => {
     dadosCache.zendesk = data.zendesk || [];
     dadosCache.produtividade = data.produtividade || [];
-    dadosCache.divergencias = data.divergencias || []; // Salva os dados brutos na memória
+    dadosCache.divergencias = data.divergencias || [];
     
-    // 🔥 FORÇAR RENDERIZAÇÃO IMEDIATA: Mostra 100% das divergências vindas da API na hora
+    // 🔥 CORREÇÃO DE LOGICA: Renderiza as divergências diretamente do cache bruto recebido
     renderDivergencias(dadosCache.divergencias);
     
     filtrarPorTexto();
@@ -577,7 +577,6 @@ function renderProdutividade(dadosProd){
   });
 }
 
-// ================= RENDERIZADOR TOTALMENTE EXTRAÍDO DE TRAVAS =================
 function renderDivergencias(dadosDiv) {
   const container = document.getElementById("corpoDivergencias");
   if (!dadosDiv || dadosDiv.length === 0) {
