@@ -139,14 +139,10 @@
   </div>
 
   <div id="conteudo-produtividade" class="tab-content space-y-6 hidden">
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-      <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-        <p class="text-slate-400 text-[10px] font-bold uppercase tracking-wider">🔥 Pontuação Total Entregue</p>
-        <h2 id="prodTotalGeral" class="text-2xl font-black text-slate-900 mt-2">0</h2>
-      </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-indigo-500">
-        <p class="text-indigo-600 text-[10px] font-bold uppercase tracking-wider">📦 Total de Pedidos Tratados</p>
-        <h2 id="prodTotalPedidos" class="text-2xl font-black text-slate-900 mt-2">0</h2>
+        <p class="text-indigo-600 text-[10px] font-bold uppercase tracking-wider">🔥 Pontuação Total Entregue</p>
+        <h2 id="prodTotalGeral" class="text-2xl font-black text-slate-900 mt-2">0</h2>
       </div>
       <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-emerald-500">
         <p class="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">👥 Total Analistas Ativos</p>
@@ -158,7 +154,7 @@
       <h3 class="font-black text-slate-900 tracking-tight text-sm uppercase text-slate-400 mb-2 flex items-center gap-2">
         <span>📊</span> Desempenho Consolidado por Analista (Volume de Entregas)
       </h3>
-      <p class="text-[11px] text-slate-400 mb-4 font-medium">Rank de produtividade para tomada de decisão ágil da gestão.</p>
+      <p class="text-[11px] text-slate-400 mb-4 font-medium">Ranking ordenado de produtividade para suporte estratégico da liderança.</p>
       <div class="w-full relative px-2" style="height: 320px;">
         <canvas id="prodChart"></canvas>
       </div>
@@ -330,7 +326,7 @@ function carregar(){
   .then(data => {
     dadosCache.zendesk = data.zendesk || [];
     dadosCache.produtividade = data.produtividade || [];
-    dadosCache.divergencias = data.divergencias || []; // Espera o mapeamento da nova aba na API
+    dadosCache.divergencias = data.divergencias || [];
     
     filtrarPorTexto();
   }).catch(err => {
@@ -473,34 +469,40 @@ function renderZendesk(dadosCompletos){
   });
 }
 
-// ================= RENDERIZAÇÃO DA PRODUTIVIDADE GERAL REFEITA =================
+// ================= RENDERIZAÇÃO DA PRODUTIVIDADE GERAL CORRIGIDA =================
 function renderProdutividade(dadosProd){
   let analistasSet = new Set();
   let statusSet = new Set();
   let matrizAgrupada = {}; 
-  let totalPedidosContados = dadosProd.length;
   let totaisPorAnalista = {};
+  let pontuacaoTotalGeral = 0;
 
+  // Processa e limpa os dados brutos recebidos da planilha
   dadosProd.forEach(p => {
-    let nome = p.responsavel || p.RESPONSAVEL || "-";
+    let nomeCru = p.responsavel || p.RESPONSAVEL || "-";
+    let nome = String(nomeCru).trim(); // Remove espaços ocultos que geram duplicação (Ex: Janaina)
     let statusOp = p.status_operacional || p["STATUS OPERACIONAL"] || "Não Definido";
     
-    if(nome !== "-") {
+    // Ignora status inválidos, vazios ou marcados como "Não Definido"
+    if(nome !== "-" && statusOp !== "Não Definido" && String(statusOp).trim() !== "") {
       analistasSet.add(nome);
       statusSet.add(statusOp);
 
       if(!matrizAgrupada[nome]) matrizAgrupada[nome] = {};
       matrizAgrupada[nome][statusOp] = (matrizAgrupada[nome][statusOp] || 0) + 1;
       totaisPorAnalista[nome] = (totaisPorAnalista[nome] || 0) + 1;
+      pontuacaoTotalGeral++;
     }
   });
 
-  let listaAnalistas = Array.from(analistasSet).sort();
+  let listaAnalistas = Array.from(analistasSet);
   let listaStatus = Array.from(statusSet).sort();
 
+  // Atualiza os indicadores superiores ajustados
   document.getElementById("prodTotalAnalistas").innerText = listaAnalistas.length;
-  document.getElementById("prodTotalPedidos").innerText = totalPedidosContados;
+  document.getElementById("prodTotalGeral").innerText = pontuacaoTotalGeral;
 
+  // Montagem Dinâmica do Cabeçalho da Tabela (Sem "Não Definido")
   let htmlHead = `<tr class="bg-slate-900 text-white font-bold uppercase tracking-wider text-[10px] select-none">
                     <th class="p-4 border-b border-slate-800">Responsável</th>`;
   listaStatus.forEach(status => {
@@ -509,13 +511,12 @@ function renderProdutividade(dadosProd){
   htmlHead += `<th class="p-4 text-center font-black bg-slate-800 border-b border-slate-800">Pontuação Total</th></tr>`;
   document.querySelector("#tabelaProdutividade thead").innerHTML = htmlHead;
 
+  // Montagem do Corpo da Tabela
   let htmlCorpo = "";
   let totaisVerticais = {};
-  let pontuacaoTotalGeral = 0;
-  
   listaStatus.forEach(s => totaisVerticais[s] = 0);
 
-  listaAnalistas.forEach(analista => {
+  listaAnalistas.sort((a, b) => (totaisPorAnalista[b] || 0) - (totaisPorAnalista[a] || 0)).forEach(analista => {
     let totalLinha = 0;
     htmlCorpo += `<tr class="hover:bg-slate-100/50 transition-colors">
                     <td class="p-4 font-bold text-slate-900 border-b border-slate-200/60">${analista}</td>`;
@@ -532,13 +533,12 @@ function renderProdutividade(dadosProd){
       }
     });
 
-    pontuacaoTotalGeral += totalLinha;
     htmlCorpo += `<td class="p-4 text-center font-black bg-slate-100/60 text-slate-950 border-b border-slate-200/60 text-sm">${totalLinha}</td></tr>`;
   });
 
-  document.getElementById("prodTotalGeral").innerText = pontuacaoTotalGeral;
   document.getElementById("corpoTabelaProdutividade").innerHTML = htmlCorpo || `<tr><td colspan="${listaStatus.length + 2}" class="text-center py-8 text-slate-400 font-medium">Nenhum dado de produtividade encontrado.</td></tr>`;
 
+  // Rodapé da Tabela com Auditoria
   let htmlRodape = `<td onclick="abrirModalProd('GERAL', '')" class="p-4 text-left font-black bg-slate-900 text-indigo-300 cursor-pointer hover:bg-black uppercase tracking-wider text-[10px] underline">🔍 Total Geral Consolidado</td>`;
   listaStatus.forEach(status => {
     htmlRodape += `<td onclick="abrirModalProd('STATUS_COLUNA', '${status}')" class="p-4 text-indigo-600 bg-indigo-50/50 font-black cursor-pointer hover:bg-indigo-100 transition-colors underline decoration-dotted">${totaisVerticais[status]}</td>`;
@@ -546,23 +546,32 @@ function renderProdutividade(dadosProd){
   htmlRodape += `<td onclick="abrirModalProd('GERAL', '')" class="p-4 text-white bg-indigo-600 hover:bg-indigo-700 text-sm font-black shadow-inner cursor-pointer transition-all underline">${pontuacaoTotalGeral}</td>`;
   document.getElementById("rodapeTabelaProdutividade").innerHTML = htmlRodape;
 
-  // ================= GRÁFICO EXECUTIVO COMPACTO HORIZONTAL (SEM REPETIÇÕES) =================
-  let dadosTotaisGrafico = listaAnalistas.map(analista => totaisPorAnalista[analista] || 0);
+  // ================= GRÁFICO EXECUTIVO HORIZONTAL ORDENADO (DO MAIOR PARA O MENOR) =================
+  // Cria uma estrutura chave-valor para classificar o ranking de forma confiável
+  let arrayRanking = listaAnalistas.map(analista => {
+    return { nome: analista, total: totaisPorAnalista[analista] || 0 };
+  });
+  
+  // Ordenação descendente (Maior entrega no topo)
+  arrayRanking.sort((a, b) => b.total - a.total);
+
+  let labelsOrdenadas = arrayRanking.map(item => item.nome);
+  let dadosOrdenados = arrayRanking.map(item => item.total);
 
   if(chartProd) chartProd.destroy();
   chartProd = new Chart(document.getElementById("prodChart"), {
     type: "bar",
     data: {
-      labels: listaAnalistas,
+      labels: labelsOrdenadas,
       datasets: [{
-        data: dadosTotaisGrafico,
+        data: dadosOrdenados,
         backgroundColor: "#4f46e5",
         borderRadius: 6,
         barThickness: 18
       }]
     },
     options: {
-      indexAxis: 'y', // Inverte para horizontal: visibilidade muito mais limpa para a gestão
+      indexAxis: 'y', 
       responsive: true,
       maintainAspectRatio: false,
       plugins: { 
@@ -583,7 +592,7 @@ function renderProdutividade(dadosProd){
   });
 }
 
-// ================= NOVO MÓDULO DE TRATAMENTO DE DIVERGÊNCIAS =================
+// ================= PROCESSAMENTO DE DIVERGÊNCIAS =================
 function renderDivergencias(dadosDiv) {
   const container = document.getElementById("corpoDivergencias");
   if (!dadosDiv || dadosDiv.length === 0) {
