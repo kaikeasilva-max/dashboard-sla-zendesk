@@ -187,7 +187,7 @@
         </h3>
         <span class="text-[10px] bg-rose-100 text-rose-800 font-bold px-2.5 py-1 rounded-md">Controle de Erros</span>
       </div>
-      <div class="overflow-x-auto w-full max-h-80 overflow-y-auto">
+      <div class="overflow-x-auto w-full">
         <table class="w-full text-left border-collapse text-xs">
           <thead>
             <tr class="bg-slate-900 text-white font-bold uppercase tracking-wider text-[10px] select-none sticky top-0">
@@ -207,6 +207,10 @@
               <td colspan="9" class="text-center py-6 text-slate-400 italic">Nenhuma divergência carregada para o período.</td>
             </tr>
           </tbody>
+          <tfoot class="bg-slate-100 border-t-2 border-slate-300 text-slate-900 font-black">
+            <tr id="rodapeDivergencias">
+            </tr>
+          </tfoot>
         </table>
       </div>
     </div>
@@ -325,9 +329,9 @@ function carregar(){
   .then(data => {
     dadosCache.zendesk = data.zendesk || [];
     dadosCache.produtividade = data.produtividade || [];
-    dadosCache.divergencias = data.divergencias || [];
+    dadosCache.divergencias = data.divergencias || []; 
     
-    // 🔥 CORREÇÃO DE LOGICA: Renderiza as divergências diretamente do cache bruto recebido
+    // 🔥 ENTRADA DIRETA NA RAIZ: Renderiza as divergências em tempo real sem travas de data
     renderDivergencias(dadosCache.divergencias);
     
     filtrarPorTexto();
@@ -577,14 +581,36 @@ function renderProdutividade(dadosProd){
   });
 }
 
+// ================= RENDERIZADOR DE DIVERGÊNCIAS ATUALIZADO (ORDENADO POR AGING & VALOR TOTAL) =================
 function renderDivergencias(dadosDiv) {
   const container = document.getElementById("corpoDivergencias");
+  const rodape = document.getElementById("rodapeDivergencias");
+  
   if (!dadosDiv || dadosDiv.length === 0) {
     container.innerHTML = `<tr><td colspan="9" class="text-center py-6 text-slate-400 italic">Nenhum registro de divergência localizado.</td></tr>`;
+    if (rodape) rodape.innerHTML = "";
     return;
   }
 
-  let html = dadosDiv.map(d => {
+  // Função interna para determinar o peso do Aging (Mais atrasados primeiro)
+  function obterPesoAging(textoAging) {
+    let t = String(textoAging || "").toUpperCase();
+    if (t.includes("365")) return 4; // Longo prazo (+91 a 365 dias)
+    if (t.includes("90")) return 3;  // Médio prazo (31 a 90 dias)
+    if (t.includes("30")) return 2;  // Curto prazo (até 30 dias)
+    return 1;
+  }
+
+  // Clona e ordena o array baseado na criticidade do Aging (Decrescente)
+  let dadosOrdenados = [...dadosDiv].sort((a, b) => {
+    let pesoA = obterPesoAging(a.aging_tabulacao);
+    let pesoB = obterPesoAging(b.aging_tabulacao);
+    return pesoB - pesoA; 
+  });
+
+  let acumuladoFinanceiroTotal = 0;
+
+  let html = dadosOrdenados.map(d => {
     let dataRaw = d.data || "-";
     let responsavel = d.responsavel || "-";
     let pedido = d.pedido || "-";
@@ -595,6 +621,9 @@ function renderDivergencias(dadosDiv) {
     let observacao = d.obs_dvg || "-";
     let aging = d.aging_tabulacao || "0d";
 
+    let valorNum = parseFloat(valor) || 0;
+    acumuladoFinanceiroTotal += valorNum;
+
     return `
       <tr class="hover:bg-rose-50/20 transition-colors">
         <td class="p-3 text-slate-500 font-mono">${dataRaw}</td>
@@ -602,7 +631,7 @@ function renderDivergencias(dadosDiv) {
         <td class="p-3 font-mono font-bold text-slate-700">#${pedido}</td>
         <td class="p-3 truncate max-w-[180px]" title="${descricao}">${descricao}</td>
         <td class="p-3 text-center font-bold">${quantidade}</td>
-        <td class="p-3 text-right text-emerald-600 font-bold">R$ ${Number(valor).toFixed(2)}</td>
+        <td class="p-3 text-right text-emerald-600 font-bold">R$ ${valorNum.toFixed(2)}</td>
         <td class="p-3"><span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-bold">${macro}</span></td>
         <td class="p-3 text-slate-600 truncate max-w-[150px]" title="${observacao}">${observacao}</td>
         <td class="p-3 text-center"><span class="px-2 py-0.5 rounded text-[10px] font-black bg-amber-100 text-amber-800">${aging}</span></td>
@@ -611,6 +640,14 @@ function renderDivergencias(dadosDiv) {
   }).join("");
 
   container.innerHTML = html;
+
+  if (rodape) {
+    rodape.innerHTML = `
+      <td colspan="5" class="p-3 text-right uppercase tracking-wider text-[10px] font-black bg-slate-900 text-white">Balanço Acumulado de Divergências:</td>
+      <td class="p-3 text-right text-sm text-rose-600 font-extrabold bg-rose-100/60 border-x">R$ ${acumuladoFinanceiroTotal.toFixed(2)}</td>
+      <td colspan="3" class="bg-slate-50"></td>
+    `;
+  }
 }
 
 function gerarPDF(){ window.print(); }
