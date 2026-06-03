@@ -39,7 +39,7 @@
       </div>
       <p class="text-slate-400 text-xs font-medium mt-1">Indicadores Zendesk & Produtividade</p>
     </div>
-     
+    
     <div id="vazaoContainer" class="bg-white/10 px-4 py-2.5 rounded-xl border border-white/10 min-w-[150px]">
       <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Vazão da Operação</p>
       <h3 id="conversaoMédia" class="text-xl font-black text-green-400 mt-0.5">0%</h3>
@@ -141,7 +141,7 @@
   <div id="conteudo-produtividade" class="tab-content space-y-6 hidden">
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-indigo-500">
-        <p class="text-indigo-600 text-[10px] font-bold uppercase tracking-wider">🔥 Total Entregue</p>
+        <p class="text-indigo-600 text-[10px] font-bold uppercase tracking-wider">🔥 Pontuação Total Entregue</p>
         <h2 id="prodTotalGeral" class="text-2xl font-black text-slate-900 mt-2">0</h2>
       </div>
       <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-emerald-500">
@@ -152,9 +152,9 @@
 
     <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
       <h3 class="font-black text-slate-900 tracking-tight text-sm uppercase text-slate-400 mb-2 flex items-center gap-2">
-        <span>📊</span> Desempenho Consolidado por Analista
+        <span>📊</span> Desempenho Consolidado por Analista (Volume de Entregas)
       </h3>
-      <p class="text-[11px] text-slate-400 mb-4 font-medium">Ranking de produtividade.</p>
+      <p class="text-[11px] text-slate-400 mb-4 font-medium">Ranking de produtividade</p>
       <div class="w-full relative px-2" style="height: 320px;">
         <canvas id="prodChart"></canvas>
       </div>
@@ -163,7 +163,7 @@
     <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
       <div class="p-5 border-b border-slate-100 bg-slate-50/50">
         <h3 class="font-black text-slate-900 tracking-tight text-sm uppercase text-slate-500 flex items-center gap-2">
-          <span>📋</span> Detalhamento Dinâmico de Produtividade (Clique nos totais inferiores para auditar)
+          <span>📋</span> Detalhamento De Produtividade
         </h3>
       </div>
       <div class="overflow-x-auto w-full">
@@ -183,7 +183,7 @@
     <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
       <div class="p-5 border-b border-slate-100 bg-rose-50/40 flex items-center justify-between">
         <h3 class="font-black text-rose-900 tracking-tight text-sm uppercase flex items-center gap-2">
-          <span>⚠️</span> Divergências Operacionais 
+          <span>⚠️</span> Divergências Operacionais
         </h3>
         <span class="text-[10px] bg-rose-100 text-rose-800 font-bold px-2.5 py-1 rounded-md">Controle de Erros</span>
       </div>
@@ -348,13 +348,17 @@ function filtrarPorTexto() {
            String(d.pedido || d.PEDIDO || '').toUpperCase().includes(termo);
   });
 
-  // ================= AJUSTADO CIRURGICAMENTE: CHAVES INTERNAS PARA ABA "dvg" =================
+  // Filtro inteligente e flexível para varrer as divergências injetadas pela API
   dadosFiltradosDivergencias = dadosCache.divergencias.filter(d => {
-    return String(d.responsavel || '').toUpperCase().includes(termo) ||
-           String(d.pedido || '').toUpperCase().includes(termo) ||
-           String(d.descricao_nf || '').toUpperCase().includes(termo) ||
-           String(d.macro_de_processamento || '').toUpperCase().includes(termo) ||
-           String(d.obs_dvg || '').toUpperCase().includes(termo);
+    let responsavel = d.responsavel || d.RESPONSÁVEL || d.RESPONSAVEL || "";
+    let pedido = d.pedido || d.Pedido || d.PEDIDO || "";
+    let descricao = d.descricao_nf || d["DESCRIÇÃO da NF"] || d.DESCRICAO_NF || "";
+    let macro = d.macro_de_processamento || d["MACRO DE PROCESSAMENTO"] || d.MACRO_DE_PROCESSAMENTO || "";
+
+    return String(responsavel).toUpperCase().includes(termo) ||
+           String(pedido).toUpperCase().includes(termo) ||
+           String(descricao).toUpperCase().includes(termo) ||
+           String(macro).toUpperCase().includes(termo);
   });
   
   renderZendesk(dadosFiltradosZendesk);
@@ -585,25 +589,25 @@ function renderProdutividade(dadosProd){
   });
 }
 
-// ================= RENDERIZAÇÃO DE DIVERGÊNCIAS AJUSTADA PARA O BACK-END "dvg" =================
+// ================= RENDERIZAÇÃO REAL DE DIVERGÊNCIAS CORRIGIDA CONTRA CONFLITOS DE CHAVES =================
 function renderDivergencias(dadosDiv) {
   const container = document.getElementById("corpoDivergencias");
   if (!dadosDiv || dadosDiv.length === 0) {
-    container.innerHTML = `<tr><td colspan="9" class="text-center py-6 text-slate-400 italic">Nenhum registro de divergência localizado.</td></tr>`;
+    container.innerHTML = `<tr><td colspan="9" class="text-center py-6 text-slate-400 italic">Nenhum registro de divergência localizado para o período.</td></tr>`;
     return;
   }
 
   let html = dadosDiv.map(d => {
-    // Garante leitura segura mapeando as chaves normatizadas enviadas pela aba "dvg" do Apps Script
-    let dataRaw = d.data || "-";
-    let responsavel = d.responsavel || "-";
-    let pedido = d.pedido || "-";
-    let descricao = d.descricao_nf || "-";
-    let quantidade = d.qtd || "0";
-    let valor = d.valor_total !== undefined ? d.valor_total : 0;
-    let macro = d.macro_de_processamento || "-";
-    let observacao = d.obs_dvg || "-";
-    let aging = d.aging_tabulacao || "0d";
+    // Normalização das chaves para ler perfeitamente o formato estrito do JSON da API
+    let dataRaw = d.data || d.DATA || "-";
+    let responsavel = d.responsavel || d.RESPONSÁVEL || d.RESPONSAVEL || "-";
+    let pedido = d.pedido || d.Pedido || d.PEDIDO || "-";
+    let descricao = d.descricao_nf || d["DESCRIÇÃO da NF"] || d.DESCRICAO_NF || "-";
+    let quantidade = d.qtd || d.QTD || "0";
+    let valor = d.valor_total !== undefined ? d.valor_total : (d["VALOR TOTAL"] || 0);
+    let macro = d.macro_de_processamento || d["MACRO DE PROCESSAMENTO"] || d.MACRO_DE_PROCESSAMENTO || "-";
+    let observacao = d.obs_dvg || d["OBS DVG"] || d.OBS_DVG || "-";
+    let aging = d.aging_tabulacao || d["Aging Tabulação"] || d.AGING_TABULACAO || "0d";
 
     return `
       <tr class="hover:bg-rose-50/20 transition-colors">
