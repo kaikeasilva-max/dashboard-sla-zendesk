@@ -365,6 +365,8 @@ function filtrarCards(tipo) {
   if (tipo === 'CRITICO') {
     resultado = dadosCache.zendesk.filter(d => {
       if(!d.data_entrada) return false;
+      // 🔥 CORREÇÃO: Filtra apenas os atualmente pendentes para evitar acúmulos incorretos no card crítico
+      if(Number(d.pendente) !== 1) return false;
       let diff = Math.floor((new Date() - new Date(d.data_entrada)) / (1000*60*60*24));
       return diff > 5;
     });
@@ -413,7 +415,9 @@ function renderZendesk(dadosCompletos){
   dadosUnicos.forEach(d => {
     if(d.sla_status?.includes("FORA")){ fora++; ticketsFora.push(d); }
     if(d.sla_status?.includes("DENTRO")) dentro++;
-    if (d.data_entrada) {
+    
+    // 🔥 CORREÇÃO: Filtra apenas se estiver Pendente na operação para contar no card (+5d)
+    if (d.data_entrada && Number(d.pendente) === 1) {
       let diff = Math.floor((new Date() - new Date(d.data_entrada)) / (1000*60*60*24));
       if(diff > 5){ critico++; ticketsCriticos.push(d.ticket_id); }
     }
@@ -580,7 +584,6 @@ function renderProdutividade(dadosProd){
   });
 }
 
-// ================= RENDERIZAÇÃO DE DIVERGÊNCIAS (PONTOS E VÍRGULAS PADRÃO BR) =================
 function renderDivergencias(dadosDiv) {
   const container = document.getElementById("corpoDivergencias");
   const rodape = document.getElementById("rodapeDivergencias");
@@ -621,7 +624,6 @@ function renderDivergencias(dadosDiv) {
     let valorNum = parseFloat(valor) || 0;
     acumuladoFinanceiroTotal += valorNum;
 
-    // Formata o valor monetário de cada linha individual da tabela para pt-BR
     let valorIndividualBR = valorNum.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
     return `
@@ -641,7 +643,6 @@ function renderDivergencias(dadosDiv) {
 
   container.innerHTML = html;
 
-  // Formata o acumulado financeiro total usando regras brasileiras de exibição (Ex: 27.388,81)
   let totalFormatadoBR = acumuladoFinanceiroTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   if (rodape) {
